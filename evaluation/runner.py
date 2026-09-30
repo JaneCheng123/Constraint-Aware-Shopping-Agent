@@ -2,7 +2,7 @@ import json
 import os
 
 
-def run_agent_on_tasks(agent, tasks, output_path):
+def run_agent_on_tasks(agent, tasks, output_path, trajectory_dir=None):
     """
     用同一批 tasks 跑任意 Agent。
 
@@ -14,6 +14,35 @@ def run_agent_on_tasks(agent, tasks, output_path):
         os.path.dirname(output_path) or ".",
         exist_ok=True,
     )
+
+    if trajectory_dir is not None:
+        os.makedirs(trajectory_dir, exist_ok=True)
+
+    def save_trajectory(result):
+        if trajectory_dir is None:
+            return
+
+        trajectory_path = os.path.join(
+            trajectory_dir,
+            f"{result['task_id']}.json",
+        )
+        trajectory_result = {
+            "task_id": result["task_id"],
+            "instruction": result["instruction"],
+            "reward": result["reward"],
+            "success": result["success"],
+            "trajectory": result["trajectory"],
+        }
+        if "error" in result:
+            trajectory_result["error"] = result["error"]
+
+        with open(trajectory_path, "w", encoding="utf-8") as trajectory_file:
+            json.dump(
+                trajectory_result,
+                trajectory_file,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     completed = set()
 
@@ -29,6 +58,18 @@ def run_agent_on_tasks(agent, tasks, output_path):
                     completed.add(result["task_id"])
                 except Exception:
                     continue
+
+                if (
+                    trajectory_dir is not None
+                    and "trajectory" in result
+                    and not os.path.exists(
+                        os.path.join(
+                            trajectory_dir,
+                            f"{result['task_id']}.json",
+                        )
+                    )
+                ):
+                    save_trajectory(result)
 
     total = len(tasks)
 
@@ -77,6 +118,8 @@ def run_agent_on_tasks(agent, tasks, output_path):
                     "reward": 0.0,
                     "error": str(e),
                 }
+                if trajectory_dir is not None:
+                    error_result["trajectory"] = []
 
                 f.write(
                     json.dumps(
@@ -88,6 +131,12 @@ def run_agent_on_tasks(agent, tasks, output_path):
 
                 f.flush()
 
+                if trajectory_dir is not None:
+                    save_trajectory(error_result)
+
                 print(
                     f"ERROR: {e}"
                 )
+
+            else:
+                save_trajectory(result)

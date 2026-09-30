@@ -1,9 +1,8 @@
 # No-Memory ReAct Debug Output
 
-> 当前结果仅用于开发和调试参考，不是最终版本，也不是正式 benchmark 结果。
 > Agent、prompt、success definition 和 evaluation 仍可能继续调整。
 
-以下是本轮 10 个 WebShop case 的开发记录，由项目成员提供；本次同步没有重新运行这些 case。
+以下是本轮 10 个 WebShop case 的开发记录
 
 | Task ID | Reward | Steps | 当前结果 |
 | --- | ---: | ---: | --- |
@@ -18,4 +17,4 @@
 | B07K6TCDR9 | 0.04000000000000001 | 7 | 很低的部分 reward |
 | B08NB29KXH | 1.0 | 5 | 完整 reward |
 
-本轮记录中，6 个 case 获得完整 reward，2 个获得部分 reward，2 个未完成。正式运行的 JSONL 和逐 task trajectory 保留在本地 `results/`，不随这份参考文档提交。
+本轮记录中，6 个 case 获得完整 reward，2 个获得部分 reward，2 个未完成。

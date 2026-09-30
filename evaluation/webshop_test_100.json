@@ -1,0 +1,736 @@
+{
+  "B08GFNJN5R": {
+    "attributes": []
+  },
+  "B07DJJXGB5": {
+    "attributes": [
+      "tea tree",
+      "essential oils",
+      "natural ingredients"
+    ],
+    "instruction": "Find me scrubs & body treatments with tea tree, natural ingredients",
+    "instruction_attributes": [
+      "tea tree",
+      "natural ingredients"
+    ]
+  },
+  "B08X2PKKB2": {
+    "attributes": [
+      "rose gold",
+      "lip balm",
+      "skin care",
+      "easy carry",
+      "high quality"
+    ],
+    "instruction": "Find me easy carry, high quality refillable containers with rose gold",
+    "instruction_attributes": [
+      "easy carry",
+      "high quality",
+      "rose gold"
+    ]
+  },
+  "B07QXZL1K5": {
+    "attributes": [
+      "eco friendly",
+      "oral care",
+      "sensitive skin"
+    ],
+    "instruction": "Find me eco friendly cotton balls & swabs for sensitive skin",
+    "instruction_attributes": [
+      "eco friendly",
+      "sensitive skin"
+    ]
+  },
+  "B005F2EVMQ": {
+    "attributes": [
+      "eye makeup",
+      "makeup remover"
+    ]
+  },
+  "B08J3WFRBT": {
+    "attributes": [
+      "travel bottles",
+      "face wash",
+      "leak proof",
+      "bpa free",
+      "easy clean"
+    ],
+    "instruction": "Find me leak proof, bpa free, easy clean refillable containers with travel bottles",
+    "instruction_attributes": [
+      "leak proof",
+      "bpa free",
+      "easy clean",
+      "travel bottles"
+    ]
+  },
+  "B0851PC2TM": {
+    "attributes": [
+      "eau toilette"
+    ]
+  },
+  "B00IG0RDNI": {
+    "attributes": [
+      "coconut oil"
+    ]
+  },
+  "B07B41K2VV": {
+    "attributes": []
+  },
+  "B00FR4V65M": {
+    "attributes": [
+      "stainless steel"
+    ]
+  },
+  "B081QR9F3V": {
+    "attributes": []
+  },
+  "B01LWI2TLG": {
+    "attributes": []
+  },
+  "B01A0VZQHK": {
+    "attributes": []
+  },
+  "B07234S5G1": {
+    "attributes": [
+      "heavy duty"
+    ]
+  },
+  "B089T9S33Y": {
+    "attributes": []
+  },
+  "B08SMS3CNY": {
+    "attributes": [
+      "easy apply"
+    ]
+  },
+  "B004LCZEJK": {
+    "attributes": [
+      "eau parfum"
+    ]
+  },
+  "B08D4MH7XQ": {
+    "attributes": [
+      "oil free",
+      "clinically proven",
+      "paraben free",
+      "dead skin"
+    ],
+    "instruction": "Find me oil free, clinically proven, paraben free scrubs & body treatments for dead skin",
+    "instruction_attributes": [
+      "oil free",
+      "clinically proven",
+      "paraben free",
+      "dead skin"
+    ]
+  },
+  "B09NYHTCVX": {
+    "attributes": [
+      "long lasting"
+    ]
+  },
+  "B07SS8QC3G": {
+    "attributes": []
+  },
+  "B01E7UY7AC": {
+    "attributes": [
+      "travel size"
+    ]
+  },
+  "B004VMVLLU": {
+    "attributes": [
+      "body lotion"
+    ]
+  },
+  "B006Y3IDMO": {
+    "attributes": [
+      "antiperspirant deodorant",
+      "easy use"
+    ]
+  },
+  "B09QYN9MYN": {
+    "attributes": [
+      "toilette spray",
+      "eau toilette"
+    ]
+  },
+  "B017MOAUGA": {
+    "attributes": []
+  },
+  "B07K6TCDR9": {
+    "attributes": [
+      "animal testing",
+      "natural hair",
+      "dry hair",
+      "hair growth"
+    ],
+    "instruction": "Find me animal testing hair loss products for natural hair, dry hair, hair growth",
+    "instruction_attributes": [
+      "animal testing",
+      "natural hair",
+      "dry hair",
+      "hair growth"
+    ]
+  },
+  "B07N864Q64": {
+    "attributes": [
+      "easy apply",
+      "cruelty free",
+      "long lasting"
+    ],
+    "instruction": "Find me easy apply, cruelty free, long lasting makeup palettes",
+    "instruction_attributes": [
+      "easy apply",
+      "cruelty free",
+      "long lasting"
+    ]
+  },
+  "B07CBFM96F": {
+    "attributes": [
+      "hair care"
+    ]
+  },
+  "B01IADZ9LI": {
+    "attributes": []
+  },
+  "B079HGJ5MH": {
+    "attributes": [
+      "hair care",
+      "hair mask"
+    ]
+  },
+  "B084PCSG5H": {
+    "attributes": [
+      "dry skin",
+      "non slip"
+    ],
+    "instruction": "Find me non slip foot, hand & nail care for dry skin",
+    "instruction_attributes": [
+      "non slip",
+      "dry skin"
+    ]
+  },
+  "B08HNFTG83": {
+    "attributes": [
+      "body cream"
+    ]
+  },
+  "B07MVN1K94": {
+    "attributes": []
+  },
+  "B07C8NSB75": {
+    "attributes": [
+      "highly pigmented"
+    ]
+  },
+  "B085HGD5Z3": {
+    "attributes": []
+  },
+  "B078T46X81": {
+    "attributes": []
+  },
+  "B09JJ5W1N4": {
+    "attributes": [
+      "makeup bag",
+      "cosmetic bag",
+      "toiletry bag",
+      "skin care",
+      "easy carry",
+      "high quality"
+    ],
+    "instruction": "Find me easy carry, high quality bags & cases",
+    "instruction_attributes": [
+      "easy carry",
+      "high quality"
+    ]
+  },
+  "B08W568RSB": {
+    "attributes": [
+      "leak proof",
+      "travel size",
+      "essential oils",
+      "high quality"
+    ],
+    "instruction": "Find me leak proof, travel size, high quality refillable containers",
+    "instruction_attributes": [
+      "leak proof",
+      "travel size",
+      "high quality"
+    ]
+  },
+  "B09B321GS4": {
+    "attributes": [
+      "dermatologist tested",
+      "cruelty free"
+    ],
+    "instruction": "Find me dermatologist tested, cruelty free body care",
+    "instruction_attributes": [
+      "dermatologist tested",
+      "cruelty free"
+    ]
+  },
+  "B08SH37R9Z": {
+    "attributes": [
+      "dead skin",
+      "shower gel"
+    ]
+  },
+  "B01GGCZA7I": {
+    "attributes": [
+      "tea tree",
+      "oral care",
+      "essential oils"
+    ]
+  },
+  "B08LD3XCPQ": {
+    "attributes": [
+      "tongue scraper",
+      "brush head",
+      "storage case",
+      "tongue cleaner",
+      "bpa free",
+      "bad breath",
+      "oral care",
+      "easy clean"
+    ],
+    "instruction": "Find me bpa free, easy clean tongue cleaners with storage case for bad breath",
+    "instruction_attributes": [
+      "bpa free",
+      "easy clean",
+      "storage case",
+      "bad breath"
+    ]
+  },
+  "B005X7IXTK": {
+    "attributes": [
+      "body cream",
+      "anti perspirant",
+      "cruelty free"
+    ],
+    "instruction": "Find me anti perspirant, cruelty free deodorants & antiperspirants",
+    "instruction_attributes": [
+      "anti perspirant",
+      "cruelty free"
+    ]
+  },
+  "B08DQWNJPQ": {
+    "attributes": [
+      "water resistant",
+      "beauty salon",
+      "hair styling"
+    ],
+    "instruction": "Find me water resistant hair cutting tools for beauty salon, hair styling",
+    "instruction_attributes": [
+      "water resistant",
+      "beauty salon",
+      "hair styling"
+    ]
+  },
+  "B00OYBADQ2": {
+    "attributes": [
+      "dead skin",
+      "certified organic",
+      "non toxic",
+      "cruelty free"
+    ],
+    "instruction": "Find me certified organic, non toxic, cruelty free scrubs & body treatments for dead skin",
+    "instruction_attributes": [
+      "certified organic",
+      "non toxic",
+      "cruelty free",
+      "dead skin"
+    ]
+  },
+  "B001EHF3KK": {
+    "attributes": []
+  },
+  "B094JTNPWK": {
+    "attributes": [
+      "anti aging",
+      "essential oils",
+      "fine lines",
+      "dry skin",
+      "dead skin"
+    ],
+    "instruction": "Find me anti aging scrubs & body treatments for fine lines, dry skin, dead skin",
+    "instruction_attributes": [
+      "anti aging",
+      "fine lines",
+      "dry skin",
+      "dead skin"
+    ]
+  },
+  "B07BFLJQCX": {
+    "attributes": [
+      "coconut oil",
+      "hair loss"
+    ],
+    "instruction": "Find me hair loss products with coconut oil for hair loss",
+    "instruction_attributes": [
+      "coconut oil",
+      "hair loss"
+    ]
+  },
+  "B00ECNSAXU": {
+    "attributes": [
+      "hair care"
+    ]
+  },
+  "B07KHWY7YT": {
+    "attributes": []
+  },
+  "B00M777566": {
+    "attributes": []
+  },
+  "B00KTPKPQA": {
+    "attributes": [
+      "whitening toothpaste"
+    ]
+  },
+  "B004TSFEBY": {
+    "attributes": [
+      "professional makeup",
+      "makeup bag",
+      "eye shadow",
+      "makeup brush",
+      "cruelty free",
+      "high quality"
+    ],
+    "instruction": "Find me cruelty free, high quality makeup brushes & tools for eye shadow",
+    "instruction_attributes": [
+      "cruelty free",
+      "high quality",
+      "eye shadow"
+    ]
+  },
+  "B08WG7VLQF": {
+    "attributes": [
+      "fragrance free",
+      "dry hair"
+    ],
+    "instruction": "Find me fragrance free styling products for dry hair",
+    "instruction_attributes": [
+      "fragrance free",
+      "dry hair"
+    ]
+  },
+  "B096MM7XM4": {
+    "attributes": [
+      "double sided",
+      "hair extensions",
+      "easy clean",
+      "easy use"
+    ],
+    "instruction": "Find me double sided, easy clean, easy use hair extensions, wigs & accessories for hair extensions",
+    "instruction_attributes": [
+      "double sided",
+      "easy clean",
+      "easy use",
+      "hair extensions"
+    ]
+  },
+  "B09JBZQJ9M": {
+    "attributes": [
+      "dental floss",
+      "high quality"
+    ]
+  },
+  "B08T9KJJPZ": {
+    "attributes": [
+      "dark circles"
+    ]
+  },
+  "B08PFRP4RN": {
+    "attributes": [
+      "easy carry",
+      "high quality"
+    ],
+    "instruction": "Find me easy carry, high quality hair extensions, wigs & accessories",
+    "instruction_attributes": [
+      "easy carry",
+      "high quality"
+    ]
+  },
+  "B08XQRDDT1": {
+    "attributes": [
+      "long lasting",
+      "easy apply",
+      "cruelty free"
+    ],
+    "instruction": "Find me long lasting, easy apply, cruelty free lips makeup",
+    "instruction_attributes": [
+      "long lasting",
+      "easy apply",
+      "cruelty free"
+    ]
+  },
+  "B091DMZNR4": {
+    "attributes": [
+      "dead skin"
+    ]
+  },
+  "B09MW563KN": {
+    "attributes": [
+      "tongue scraper",
+      "tongue cleaner",
+      "oral hygiene",
+      "fresh breath",
+      "oral care"
+    ],
+    "instruction": "Find me tongue cleaners for oral hygiene, fresh breath",
+    "instruction_attributes": [
+      "oral hygiene",
+      "fresh breath"
+    ]
+  },
+  "B08GXD5MDG": {
+    "attributes": [
+      "dental floss",
+      "oral care"
+    ]
+  },
+  "B07XCY8DND": {
+    "attributes": []
+  },
+  "B001E77OCU": {
+    "attributes": []
+  },
+  "B07CXTNVRJ": {
+    "attributes": [
+      "makeup palette",
+      "easy clean",
+      "stainless steel"
+    ],
+    "instruction": "Find me easy clean makeup palettes with stainless steel",
+    "instruction_attributes": [
+      "easy clean",
+      "stainless steel"
+    ]
+  },
+  "B01IA9BY1G": {
+    "attributes": []
+  },
+  "B01GR1ABDG": {
+    "attributes": []
+  },
+  "B09QT2369P": {
+    "attributes": []
+  },
+  "B079Y4B4YP": {
+    "attributes": [
+      "hair care"
+    ]
+  },
+  "B09QMGX7V3": {
+    "attributes": []
+  },
+  "B09MM1S15K": {
+    "attributes": [
+      "stainless steel",
+      "tattoo machine"
+    ]
+  },
+  "B08NB29KXH": {
+    "attributes": [
+      "high quality",
+      "hair removal",
+      "sensitive skin",
+      "easy carry",
+      "stainless steel"
+    ],
+    "instruction": "Find me high quality, easy carry shave & hair removal with stainless steel for hair removal, sensitive skin",
+    "instruction_attributes": [
+      "high quality",
+      "easy carry",
+      "stainless steel",
+      "hair removal",
+      "sensitive skin"
+    ]
+  },
+  "B08XQWJX8P": {
+    "attributes": [
+      "eau toilette",
+      "essential oils",
+      "natural ingredients",
+      "long lasting"
+    ],
+    "instruction": "Find me long lasting men's fragrance with natural ingredients",
+    "instruction_attributes": [
+      "long lasting",
+      "natural ingredients"
+    ]
+  },
+  "B09NPZHTTY": {
+    "attributes": [
+      "hair styling",
+      "hair scalp"
+    ]
+  },
+  "B09Q3PZ8JK": {
+    "attributes": [
+      "body wash",
+      "aloe vera"
+    ]
+  },
+  "B09LVMQ1K6": {
+    "attributes": []
+  },
+  "B08KLLJJXG": {
+    "attributes": [
+      "cosmetic bag",
+      "double sided"
+    ]
+  },
+  "B095TRCDXW": {
+    "attributes": [
+      "skin care"
+    ]
+  },
+  "B08276Q6PZ": {
+    "attributes": [
+      "storage box",
+      "non toxic",
+      "skin care"
+    ]
+  },
+  "B091HFPLPW": {
+    "attributes": [
+      "face cream",
+      "high quality"
+    ]
+  },
+  "B001B4NFV0": {
+    "attributes": [
+      "spray women",
+      "parfum spray",
+      "eau parfum"
+    ]
+  },
+  "B004Q5CYH2": {
+    "attributes": [
+      "anti perspirant"
+    ]
+  },
+  "B06ZYJ4JHT": {
+    "attributes": [
+      "face mask"
+    ]
+  },
+  "B089VWZB64": {
+    "attributes": [
+      "alcohol free",
+      "natural ingredients",
+      "long lasting"
+    ],
+    "instruction": "Find me alcohol free, long lasting men's fragrance with natural ingredients",
+    "instruction_attributes": [
+      "alcohol free",
+      "long lasting",
+      "natural ingredients"
+    ]
+  },
+  "B00NFV6V3Q": {
+    "attributes": []
+  },
+  "B00HTXJLL0": {
+    "attributes": [
+      "anti perspirant"
+    ]
+  },
+  "B09MCF64RM": {
+    "attributes": [
+      "makeup bag",
+      "cosmetic bag",
+      "hair accessories",
+      "eye shadow",
+      "makeup brush",
+      "high quality"
+    ],
+    "instruction": "Find me high quality bags & cases for eye shadow",
+    "instruction_attributes": [
+      "high quality",
+      "eye shadow"
+    ]
+  },
+  "B08X93ZXR5": {
+    "attributes": [
+      "eau toilette"
+    ]
+  },
+  "B09MDQ4HBT": {
+    "attributes": [
+      "argan oil"
+    ]
+  },
+  "B09D842QY4": {
+    "attributes": [
+      "eye shadow",
+      "easy clean"
+    ],
+    "instruction": "Find me easy clean bags & cases for eye shadow",
+    "instruction_attributes": [
+      "easy clean",
+      "eye shadow"
+    ]
+  },
+  "B08936C8GH": {
+    "attributes": [
+      "high quality"
+    ]
+  },
+  "B07ZKCYT47": {
+    "attributes": [
+      "oral care"
+    ]
+  },
+  "B08329Z669": {
+    "attributes": [
+      "cruelty free"
+    ]
+  },
+  "B09T33VS4Y": {
+    "attributes": [
+      "brush set",
+      "makeup brush"
+    ]
+  },
+  "B09BW4S48B": {
+    "attributes": [
+      "sensitive skin",
+      "nail polish",
+      "skin care"
+    ],
+    "instruction": "Find me makeup remover for sensitive skin, nail polish",
+    "instruction_attributes": [
+      "sensitive skin",
+      "nail polish"
+    ]
+  },
+  "B083FBJVDY": {
+    "attributes": []
+  },
+  "B00T9U3NA6": {
+    "attributes": [
+      "hair removal"
+    ]
+  },
+  "B07963ZMK6": {
+    "attributes": []
+  },
+  "B09BWQZ68V": {
+    "attributes": [
+      "dermatologist tested",
+      "shea butter",
+      "sensitive skin"
+    ],
+    "instruction": "Find me dermatologist tested foot, hand & nail care for sensitive skin",
+    "instruction_attributes": [
+      "dermatologist tested",
+      "sensitive skin"
+    ]
+  },
+  "B08X31TV2P": {
+    "attributes": [
+      "antiperspirant deodorant"
+    ]
+  }
+}

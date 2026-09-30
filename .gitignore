@@ -16,3 +16,48 @@ user_session_logs/
 
 
 *_err_*.log
+# ==============================
+# Our project local files
+# ==============================
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Experiment outputs
+results/
+evaluation/results/
+*.jsonl
+*.log
+baseline_trajectory.json
+
+# Backup files
+*.bak
+*.backup
+
+# Downloaded models / packages
+*.whl
+*.tar.gz
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Caches
+.cache/
+wandb/
+
+# Local / legacy experiment files
+evaluation/tasks.json
+baseline_deepseek.py
+
+# Jupyter temporary files
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/

@@ -61,3 +61,6 @@ baseline_deepseek.py
 # Jupyter temporary files
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
+*.key
+*.before_fix*
+*.before_pg_fix*

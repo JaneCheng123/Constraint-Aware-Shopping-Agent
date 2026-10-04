@@ -53,6 +53,7 @@ class ReActAgent(BaseAgent):
 User instruction: {instruction}
 Current observation: {observation}
 Available actions: {json.dumps(actions, ensure_ascii=False)}
+Current page: {page_type(actions)}; search bar available: {bool(actions.get('has_search_bar'))}
 Task-local candidate memory: {json.dumps(memory.context(), ensure_ascii=False)}
 Recent reasoning and actions: {json.dumps(memory.history[-6:], ensure_ascii=False)}
 Remaining interaction steps: {self.max_steps - step + 1}
@@ -63,6 +64,13 @@ Inspect useful detail pages at most once per candidate. Select required options.
 Do not repeat normalized searches or revisit rejected/exhausted candidates.
 Keep stronger candidates in mind when comparing alternatives. During the last five
 steps, finish legal navigation and purchase only if supported; do not invent clicks.
+Search is legal ONLY when has_search_bar=true. Back to Search opens the search
+HOME, not the results. On a product page < Prev returns to results; on a detail
+page < Prev returns to the product. On results, inspect visible product IDs or
+click Back to Search before issuing a new query. On the search home, issue a
+query; old result IDs in memory are not clickable there. On detail pages return
+with < Prev before visiting another detail or buying. Do not require reviews,
+ratings, or comparison with alternatives unless the user's instruction asks.
 """
         if feedback:
             prompt += "\nConstraint feedback: " + json.dumps(feedback, ensure_ascii=False)
@@ -143,6 +151,15 @@ steps, finish legal navigation and purchase only if supported; do not invent cli
                         retry_error = str(exc)
                     if action and memory.candidate and action[6:-1].casefold() in memory.candidate["seen_sections"]:
                         action = None
+                if action is None:
+                    # Recover from an illegal proposal using navigation only.
+                    # This is shared by all groups and never authorizes a buy.
+                    if page_type(actions) == "detail":
+                        action = canonical_action("click[< prev]", actions)
+                    elif actions.get("has_search_bar"):
+                        action = canonical_action(f"search[{instruction}]", actions)
+                    else:
+                        action = canonical_action("click[back to search]", actions)
                 if action is None:
                     stop_reason = "invalid_action"
                     trajectory.append({"step": step, "proposed_action": proposal, "action": None, "executed": False,

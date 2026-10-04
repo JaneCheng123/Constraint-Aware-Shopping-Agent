@@ -17,14 +17,12 @@ def test_random_idx():
     assert idx_2 == expected_2
     assert idx_3 == expected_3
 
-def test_setup_logger():
-    LOG_DIR = 'user_session_logs_test/'
-    user_log_dir = Path(LOG_DIR)
-    user_log_dir.mkdir(parents=True, exist_ok=True)
+def test_setup_logger(tmp_path):
+    user_log_dir = tmp_path
     session_id = "ABC"
 
     logger = setup_logger(session_id, user_log_dir)
-    log_file = Path(LOG_DIR + "/" + session_id + ".jsonl")
+    log_file = user_log_dir / (session_id + '.jsonl')
     assert Path(log_file).is_file()
     assert logger.level == logging.INFO
 
@@ -32,7 +30,10 @@ def test_setup_logger():
     logger.info(content)
     assert log_file.read_text().strip("\n") == content
 
-    shutil.rmtree(LOG_DIR)
+    # Windows cannot delete an open FileHandler; always release test resources.
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
 
 def test_generate_mturk_code():
     suite = [

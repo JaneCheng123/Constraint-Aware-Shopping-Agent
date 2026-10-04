@@ -83,7 +83,7 @@ def parse_item_page_ebay(asin, verbose=True):
     # Price: Get price string, extract decimal numbers from string
     try:
         price_str = soup.find('div', {'class': 'mainPrice'}).text
-        prices = re.findall('\d*\.?\d+', price_str)
+        prices = re.findall(r'\d*\.?\d+', price_str)
         product_dict["Price"] = prices[0]
     except:
         product_dict["Price"] = "N/A"

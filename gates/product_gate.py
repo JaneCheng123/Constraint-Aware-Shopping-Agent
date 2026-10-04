@@ -138,17 +138,33 @@ Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason
         entries = [dict(category, constraint="product_type")]
         for item in schema["required_constraints"]:
             entries.append(dict(self._resolve_constraint(evidence, item), constraint=self._preferred_text(item)))
-        groups, selected = actions.get("option_groups", {}), inspection.get("selected_options", {})
-        options = [check_option(item, groups, selected) for item in schema["post_selection_constraints"]]
+        groups = actions.get("option_groups") or inspection.get("option_groups", {})
+        selected = inspection.get("selected_options", {})
+        options = []
+        for item in schema["post_selection_constraints"]:
+            option = check_option(item, groups, selected)
+            option["satisfied"] = option["selected"]
+            # A variant with an actual selector must be selected. A fixed
+            # property (e.g. rose-gold tins with only size selectors) is instead
+            # verified in visible evidence; don't demand a nonexistent click.
+            if not any(normalize_option(group) == normalize_option(item.get("kind")) for group in groups):
+                fixed = self._resolve_constraint(evidence, item)
+                option["fixed_property_evidence"] = fixed
+                option["satisfied"] = fixed["status"] == "SUPPORTED"
+                option["status"] = fixed["status"]
+            options.append(option)
         price_text = inspection.get("product_observation", evidence)
         price = check_price(schema.get("price_constraint"), price_text)
         if price["status"] != "NOT_REQUIRED":
             entries.append(dict(price, constraint="price", match_type="price_bounds"))
         matched = [x["constraint"] for x in entries if x["status"] == "SUPPORTED"]
         missing = [x["constraint"] for x in entries if x["status"] == "MISSING"]
-        missing += [x["constraint"] for x in options if not x["selected"]]
+        missing += [x["constraint"] for x in options if x["status"] == "MISSING"]
         contradicted = [x["constraint"] for x in entries if x["status"] == "CONTRADICTED"]
+        contradicted += [x["constraint"] for x in options if x["status"] == "CONTRADICTED"]
         errors = [x.get("error") for x in entries if x.get("error")]
+        errors += [x["fixed_property_evidence"]["error"] for x in options
+                   if x.get("fixed_property_evidence", {}).get("error")]
         audit = None
         if contradicted:
             decision, reason = "REJECT", "Confirmed conflict: " + ", ".join(contradicted)

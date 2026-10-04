@@ -15,24 +15,42 @@ class LLMClient:
         self.input_tokens = 0
         self.output_tokens = 0
         self._sdk = None
+        self._http = None
 
     def complete(self, prompt, purpose="policy", model=None):
         self.calls[purpose] += 1
         try:
-            if self._sdk is None:
+            if self._sdk is None and self._http is None:
                 if not self.api_key:
                     raise RuntimeError("Set DEEPSEEK_API_KEY before a live run.")
                 try:
-                    from openai import OpenAI
+                    import openai
                 except ImportError as exc:
                     raise RuntimeError("Install requirements-agent.txt for live LLM calls.") from exc
-                # Count every attempt; the SDK must not hide retries from evaluation.
-                self._sdk = OpenAI(api_key=self.api_key, base_url=self.base_url,
-                                   timeout=self.timeout, max_retries=0)
-            response = self._sdk.chat.completions.create(
-                model=model or self.model,
-                messages=[{"role": "user", "content": prompt}], temperature=0,
-            )
+                if hasattr(openai, "OpenAI"):
+                    # Count every attempt; the SDK must not hide retries.
+                    self._sdk = openai.OpenAI(api_key=self.api_key, base_url=self.base_url,
+                                              timeout=self.timeout, max_retries=0)
+                else:
+                    # Existing WebShop environments commonly use openai 0.28.
+                    # Keep that environment intact and use a per-client HTTP
+                    # transport, avoiding its global configuration and retries.
+                    import requests
+                    self._http = requests.Session()
+                    self._http.mount("https://", requests.adapters.HTTPAdapter(max_retries=0))
+            arguments = {"model": model or self.model,
+                         "messages": [{"role": "user", "content": prompt}], "temperature": 0}
+            if self._http is not None:
+                response = self._http.post(self.base_url.rstrip("/") + "/chat/completions",
+                    headers={"Authorization": "Bearer " + self.api_key},
+                    json=arguments, timeout=self.timeout)
+                response.raise_for_status()
+                response = response.json()
+                usage = response.get("usage") or {}
+                self.input_tokens += usage.get("prompt_tokens") or 0
+                self.output_tokens += usage.get("completion_tokens") or 0
+                return response["choices"][0]["message"].get("content") or ""
+            response = self._sdk.chat.completions.create(**arguments)
             if response.usage:
                 self.input_tokens += response.usage.prompt_tokens or 0
                 self.output_tokens += response.usage.completion_tokens or 0

@@ -235,6 +235,7 @@ class ConstraintManager:
                 {},
             )
         )
+        product_type["kind"] = "product_type"
 
         required_raw = schema.get(
             "required_constraints",
@@ -458,6 +459,9 @@ Proposed extraction:
 {json.dumps(normalized, ensure_ascii=False)}
 
 Check the extraction carefully. valid must describe the corrected_schema you return; return boolean false if that final schema cannot be verified. Check kind and value of every selectable option, including color and size, as well as price completeness.
+The normalized schema permits kind and value metadata on every item, including
+product_type (kind=product_type). Do not reject or remove valid metadata merely
+because the illustrative output below omits it. Check meaning, not optional fields.
 
 CRITICAL RULES:
 
@@ -599,9 +603,7 @@ Return ONLY JSON:
                 if issue not in deduped:
                     deduped.append(issue)
 
-            # If LLM reported the original schema invalid but
-            # supplied a source-anchored correction, the
-            # corrected schema is allowed.
+            # Require affirmative semantic approval of the returned schema.
             final_valid = (llm_valid and len(final_issues) == 0)
 
             return {
@@ -619,8 +621,7 @@ Return ONLY JSON:
 
         except Exception as e:
 
-            # If validator API fails, we can still use a schema
-            # that passes source anchoring, but record warning.
+            # A validator outage never supplies semantic approval.
             return {
                 "valid": False,
                 "schema": normalized,

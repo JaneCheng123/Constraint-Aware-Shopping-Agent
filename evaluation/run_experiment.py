@@ -34,6 +34,7 @@ def source_files():
     for folder in ("agent", "gates", "evaluation", "webshop_wrapper", "demo"):
         paths += list((ROOT / folder).glob("*.py"))
     paths += list((ROOT / "demo").glob("*.json"))
+    paths += list((ROOT / "evaluation").glob("*.ps1"))
     paths += list((ROOT / "web_agent_site").rglob("*.py"))
     paths += list((ROOT / "web_agent_site/templates").glob("*.html"))
     paths += [ROOT / "requirements.txt", ROOT / "requirements-agent.txt"]
@@ -48,7 +49,7 @@ def manifest_for(args, tasks):
     index_fingerprint = {str(path.relative_to(ROOT)): {"bytes": path.stat().st_size, "mtime_ns": path.stat().st_mtime_ns}
                          for path in index_dir.rglob("*") if path.is_file()}
     versions = {}
-    for package in ("openai", "gym", "beautifulsoup4", "Flask", "numpy", "torch", "pyserini", "spacy", "thefuzz"):
+    for package in ("openai", "requests", "gym", "beautifulsoup4", "Flask", "numpy", "torch", "pyserini", "spacy", "thefuzz"):
         try:
             versions[package] = metadata.version(package)
         except metadata.PackageNotFoundError:

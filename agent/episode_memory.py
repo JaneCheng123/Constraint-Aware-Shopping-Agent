@@ -66,7 +66,8 @@ class EpisodeMemory:
                 self.current = value.upper()
                 self.candidates.setdefault(self.current, {
                     "pages": {}, "seen_sections": [], "selected_options": {},
-                    "available_sections": [], "product_observation": "", "status": "active", "assessment": "",
+                    "available_sections": [], "product_observation": "", "option_groups": {},
+                    "status": "active", "assessment": "",
                 })
             elif candidate_before is not None and page_type(before) == "product":
                 for group, values in before.get("option_groups", {}).items():
@@ -86,6 +87,7 @@ class EpisodeMemory:
                     # Use directly visible selections when the adapter supplies them.
                     if "selected_options" in after:
                         candidate["selected_options"] = dict(after["selected_options"])
+                    candidate["option_groups"] = dict(after.get("option_groups", {}))
                 if lowered == "buy now":
                     candidate["status"] = "purchased"
         # The policy never receives reward or target identifiers from evaluation.

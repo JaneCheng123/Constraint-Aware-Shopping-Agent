@@ -29,6 +29,43 @@ TASK = {key: copy.deepcopy(FIXTURES[0][key]) for key in
         ("task_id", "instruction", "instruction_attributes", "instruction_options")}
 
 
+class ClientCompatibilityTests(unittest.TestCase):
+    def test_legacy_environment_uses_counted_http_without_global_sdk_changes(self):
+        from unittest.mock import Mock
+        response = Mock()
+        response.json.return_value = {"choices": [{"message": {"content": "OK"}}],
+                                      "usage": {"prompt_tokens": 4, "completion_tokens": 1}}
+        session = Mock()
+        session.post.return_value = response
+        adapter = Mock()
+        requests = types.SimpleNamespace(Session=Mock(return_value=session),
+                                         adapters=types.SimpleNamespace(HTTPAdapter=adapter))
+        old_sdk = types.SimpleNamespace(api_key="untouched")
+        with patch.dict("sys.modules", {"openai": old_sdk, "requests": requests}):
+            client = LLMClient(api_key="test-key", base_url="https://example.invalid/", timeout=12)
+            self.assertEqual(client.complete("hello", purpose="policy"), "OK")
+            self.assertEqual(client.complete("again", purpose="gate"), "OK")
+        adapter.assert_called_once_with(max_retries=0)
+        self.assertEqual(old_sdk.api_key, "untouched")
+        self.assertEqual(session.post.call_args.args[0], "https://example.invalid/chat/completions")
+        self.assertEqual(session.post.call_args.kwargs["timeout"], 12)
+        self.assertEqual(client.snapshot()["llm_calls"], 2)
+        self.assertEqual(client.snapshot()["input_tokens"], 8)
+
+    def test_http_error_is_counted_once_without_retry(self):
+        from unittest.mock import Mock
+        response = Mock()
+        response.raise_for_status.side_effect = RuntimeError("Service unavailable")
+        client = LLMClient(api_key="test-key")
+        client._http = Mock()
+        client._http.post.return_value = response
+        with self.assertRaises(RuntimeError):
+            client.complete("hello", purpose="query_repair")
+        client._http.post.assert_called_once()
+        self.assertEqual(client.snapshot()["llm_calls"], 1)
+        self.assertEqual(client.snapshot()["llm_errors"], 1)
+
+
 class QueueClient(LLMClient):
     def __init__(self, *responses):
         super().__init__(model="test-model")
@@ -116,6 +153,10 @@ class ConstraintTests(unittest.TestCase):
         self.assertEqual(manager.validation_calls, 1)
         self.assertEqual(second["product_type"]["canonical"], "tongue cleaner")
 
+    def test_product_type_metadata_is_consistent_for_validation(self):
+        schema = ConstraintManager._normalize_schema(FIXTURES[0]["schema"])
+        self.assertEqual(schema["product_type"]["kind"], "product_type")
+
     def test_query_includes_options_and_price(self):
         gate = QueryGate(constraint_manager=ConstraintManager(client=ScriptedClient()))
         result = gate.validate_query(TASK["instruction"], "tongue cleaner")
@@ -141,7 +182,7 @@ class ProductGateTests(unittest.TestCase):
         gate._resolve_constraint = resolve
         result = gate.evaluate(TASK["instruction"], "Phone case; Price: $99", inspection_state={"product_observation": "Price: $99"})
         self.assertEqual(result["decision"], "REJECT")
-        self.assertEqual(len(checked), 1)
+        self.assertEqual(len(checked), 2)
         self.assertEqual(result["price_evidence"]["status"], "CONTRADICTED")
         self.assertEqual(len(result["post_selection"]), 1)
         self.assertEqual(gate.final_audit_calls, 0)
@@ -161,6 +202,30 @@ class ProductGateTests(unittest.TestCase):
             inspection_state={"selected_options": {"color": "blue"}})
         self.assertEqual(result["decision"], "REJECT")
         self.assertEqual(gate.final_audit_calls, 0)
+
+    def test_fixed_color_needs_evidence_but_not_a_nonexistent_selector(self):
+        gate = self.gate()
+        result = gate.evaluate(TASK["instruction"], "Blue BPA-free tongue cleaner; Price: $9",
+            available_actions={"clickables": ["buy now"], "option_groups": {"size": ["M", "L"]}},
+            inspection_state={"selected_options": {}, "available_sections": [], "seen_sections": []})
+        self.assertTrue(result["ready_to_buy"])
+        self.assertTrue(result["post_selection"][0]["satisfied"])
+        self.assertFalse(result["post_selection"][0]["selected"])
+
+    def test_fixed_color_missing_is_not_inferred(self):
+        result = self.gate().evaluate(TASK["instruction"], "BPA-free tongue cleaner; Price: $9",
+            available_actions={"clickables": ["buy now"], "option_groups": {}},
+            inspection_state={"available_sections": [], "seen_sections": []})
+        self.assertFalse(result["ready_to_buy"])
+        self.assertEqual(result["post_selection"][0]["status"], "MISSING")
+
+    def test_detail_page_does_not_discard_known_unselected_color_selector(self):
+        result = self.gate().evaluate(TASK["instruction"], "Blue BPA-free tongue cleaner; Price: $9",
+            available_actions={"clickables": ["< prev"], "option_groups": {}},
+            inspection_state={"option_groups": {"color": ["blue", "red"]},
+                              "selected_options": {}, "available_sections": ["features"], "seen_sections": []})
+        self.assertFalse(result["ready_to_buy"])
+        self.assertEqual(result["recommended_action"], "click[< prev]")
 
 
 class MemoryTests(unittest.TestCase):
@@ -189,6 +254,15 @@ class MemoryTests(unittest.TestCase):
 
 
 class AgentTests(unittest.TestCase):
+    def test_illegal_search_on_results_recovers_via_search_home_without_buying(self):
+        client = QueueClient("ACTION: search[tongue cleaner]", "ACTION: search[new query]", "ACTION: search[new query]")
+        result = GatedAgent(client=client, max_steps=2, env_factory=DemoEnvironment,
+                            use_query_gate=False, use_product_gate=False).run(TASK)
+        self.assertNotIn("error", result)
+        self.assertEqual(result["trajectory"][-1]["action"], "click[back to search]")
+        self.assertEqual(result["steps"], 2)
+        self.assertFalse(result["done"])
+
     def test_all_four_configurations_execute(self):
         for query, product in ((False, False), (True, False), (False, True), (True, True)):
             agent = GatedAgent(client=ScriptedClient(), env_factory=DemoEnvironment, use_query_gate=query, use_product_gate=product)

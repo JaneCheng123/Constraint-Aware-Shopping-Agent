@@ -45,6 +45,14 @@ python -m demo.run_demo --output-dir results/demo-cz-v1
 
 ## 真实 WebShop 实验
 
+Windows 已有 webshop Conda 环境时，可使用下面的启动器；它会选择该环境的 Python/Java，退出时恢复进程环境变量。API key 从环境读取，不输出密钥。旧版 openai 0.28 环境使用无隐式重试的 HTTP 兼容接口，无需升级或破坏原环境。
+
+~~~powershell
+.\evaluation\run_live.ps1 -MaxSteps 20 -Repeats 1 -OutputDir results/cz-v1-live
+~~~
+
+如系统代理导致 DeepSeek TLS 连接失败，可加 -DirectApi，仅让 API 域名走直连，保留 TLS 验证。可用 -PythonPath 显式指定已有环境，-Configs baseline 只跑基线；相同参数续跑加 -Resume。
+
 保留上游 WebShop 依赖版本。建议在独立的、可安装这些旧版本的 Python/Java 环境中准备依赖与数据。setup.sh 使用 Bash、conda、OpenJDK 11 和 gdown；Windows 可在 WSL 中运行上游安装流程。
 
 ~~~bash

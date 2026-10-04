@@ -89,7 +89,7 @@ class DemoEnvironment:
 
     def get_available_actions(self):
         base = {"page_type": "detail" if self.page in {"features", "description", "reviews"} else self.page,
-                "has_search_bar": self.page in {"search", "results"}, "product_ids": [],
+                "has_search_bar": self.page == "search", "product_ids": [],
                 "option_groups": {}, "selected_options": {}, "clickables": []}
         if self.page == "results":
             base["product_ids"] = [x["id"] for x in self.results]

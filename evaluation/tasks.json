@@ -1,0 +1,22 @@
+[
+    {
+        "task_id": "webshop_001",
+        "instruction": "i'm looking for a 3 sided toothbrush for fresh breath"
+    },
+    {
+        "task_id": "webshop_002",
+        "instruction": "i need a men's blue t-shirt that is compatible with the machine washer."
+    },
+    {
+        "task_id": "webshop_003",
+        "instruction": "i need footprints in the sand necklace  and earrings sized long lasting candle 21oz"
+    },
+    {
+        "task_id": "webshop_004",
+        "instruction": "i am looking for a cupcake topper for a birthday party. also choose black color"
+    },
+    {
+        "task_id": "webshop_005",
+        "instruction": "i am looking for caffeine free and gluten free chocolate. please choose peanut butter flavor."
+    }
+]

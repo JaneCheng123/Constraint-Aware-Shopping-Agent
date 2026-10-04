@@ -1,63 +1,44 @@
-*.ipynb*
-*.pyc
-*.swp
-
-.DS_Store
-.idea/
-.pytest_cache/
-.vscode/
-
-__pycache__/
-data/
-search_engine/indexes*
-search_engine/resources*
-transfer/flagged
-user_session_logs/
-
-
-*_err_*.log
-# ==============================
-# Our project local files
-# ==============================
-
-# Secrets
-.env
-.env.*
-!.env.example
-
 # Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Jupyter
+.ipynb_checkpoints/
+
 # Experiment outputs
 results/
-evaluation/results/
-*.jsonl
 *.log
-baseline_trajectory.json
+wandb/
 
-# Backup files
+# Secrets
+.env
+.env.*
+*.key
+
+# Temporary / backup
+*.before*
 *.bak
-*.backup
+*~
 
-# Downloaded models / packages
-*.whl
+# Archives / local packages
 *.tar.gz
+*.whl
 
-# IDE / OS
+# Local datasets and generated WebShop resources
+data/
+search_engine/resources/
+search_engine/resources_100/
+search_engine/resources_1k/
+search_engine/resources_100k/
+
+# Local generated indexes
+indexes/
+indexes_100/
+indexes_1k/
+indexes_100k/
+
+# Editors / OS
 .vscode/
 .idea/
 .DS_Store
-
-# Caches
-.cache/
-wandb/
-
-# Local / legacy experiment files
-evaluation/tasks.json
-baseline_deepseek.py
-
-# Jupyter temporary files
-.ipynb_checkpoints/
-**/.ipynb_checkpoints/

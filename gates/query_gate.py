@@ -87,7 +87,10 @@ class QueryGate:
         parts += [item.get("value", item["canonical"]) for item in schema["post_selection_constraints"]]
         if schema["price_constraint"]:
             parts.append(schema["price_constraint"])
-        if result["contradicted_constraints"]:
+        missing_brand = any(item.get("kind") == "brand" and item["canonical"] in result["missing_constraints"]
+                            for item in schema["required_constraints"] + schema["post_selection_constraints"])
+        if result["contradicted_constraints"] or missing_brand:
+            # A missed brand may actually be a substitution; appending keeps both.
             repaired = " ".join(dict.fromkeys(x for x in parts if x))
         else:
             # Preserve the policy's useful query; append only omitted constraints.

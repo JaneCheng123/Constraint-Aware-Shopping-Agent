@@ -191,11 +191,26 @@ Use UNKNOWN when provenance cannot be established. Do not invent evidence.
         # No early category return: check every hard requirement before any decision.
         category = self._resolve_product_type(evidence, schema["product_type"])
         entries = [dict(category, constraint="product_type")]
-        for item in schema["required_constraints"]:
-            entries.append(dict(self._resolve_constraint(evidence, item), constraint=self._preferred_text(item)))
         groups = actions.get("option_groups") or inspection.get("option_groups", {})
         selected = inspection.get("selected_options", {})
         options = []
+        for item in schema["required_constraints"]:
+            entries.append(dict(self._resolve_constraint(evidence, item), constraint=self._preferred_text(item)))
+            # Extraction may classify a selectable value as an ordinary attribute.
+            # Bind only this candidate's selectors; keep the shared schema intact.
+            option = check_option(item, groups, selected)
+            typed_selector = any(normalize_option(group) == normalize_option(item.get("kind")) for group in groups)
+            if option["available"] or typed_selector:
+                matches = option["matching_groups"]
+                if len(matches) == 1:
+                    group = matches[0]
+                    option = check_option(item, {group: groups[group]}, selected)
+                    option["bound_group"] = group
+                elif len(matches) > 1:
+                    # An ambiguous group is unresolved, not a guessed click.
+                    option.update(status="MISSING", selected=False, available=False, available_action=None)
+                option.update(satisfied=option["selected"], source="required")
+                options.append(option)
         for item in schema["post_selection_constraints"]:
             option = check_option(item, groups, selected)
             option["satisfied"] = option["selected"]

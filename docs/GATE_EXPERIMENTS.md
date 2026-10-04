@@ -11,7 +11,7 @@
 | 设置 | 默认 | 含义 |
 |---|---|---|
 | audit-version | grounded | 新职责与结构化错配；legacy/benchmark/variant 为历史提示词臂 |
-| query-mode | coverage | 继续检查全部约束；仅遗漏时保留原查询追加，明确矛盾时重建 |
+| query-mode | coverage | 继续检查全部约束；普通遗漏追加，明确矛盾或明确品牌未支持时重建 |
 | query-mode=layered | 可选 | 拦截冲突；遗漏保留诊断，对类别/品牌/规格/价格等发一次非阻断提醒，策略可保留原查询 |
 | query-mode=direction | 可选 | 拦截检测到的冲突，遗漏仅记录；空查询始终阻断。属于缩小覆盖目标的新实验臂 |
 | variant-review | 关闭 | H1：仅对已选中选项的审计冲突进行一次来源复核，允许 UNKNOWN；明确冲突不降级 |

@@ -15,10 +15,11 @@ cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct �
    - 对应 Phase 2 的 Query Gate。
    - 检查类别、属性、品牌、颜色/尺寸等选项及价格条件。
    - PASS/REVISE/UNAVAILABLE；修复后的搜索必须再次验证。
-   - 默认 coverage 保留完整覆盖目标；layered/direction 为独立 H2 实验设置。缺失时保留原查询补充，矛盾时重建。
+   - 默认 coverage 保留完整覆盖目标；layered/direction 为独立 H2 实验设置。普通缺失追加，矛盾或明确品牌未支持时重建。
 3. gates/product_gate.py
    - 对应 Phase 3 的 Product Gate。
    - 汇总可见页面证据，检查类别、属性、硬约束、当前选项和价格。
+   - 普通属性与真实选择器明确对应时，复用选项检查确认实际选择；仅绑定当前候选，不改共享 schema。
    - READY/INSPECT/REJECT/EXHAUSTED/UNAVAILABLE；最终语义审计不能覆盖硬约束冲突。
    - grounded 审计复核已有约束并引用错配证据；选项来源复核 H1 默认关闭，不直接强制放行。
 4. gates/hard_constraints.py

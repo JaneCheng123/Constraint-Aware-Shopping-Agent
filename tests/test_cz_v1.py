@@ -250,6 +250,100 @@ class ProductGateTests(unittest.TestCase):
         self.assertIn('"selected_options": {"color": "blue"}', client.prompts[0][2])
 
 
+class RequiredOptionBindingTests(unittest.TestCase):
+    def gate(self, text="fragrance free", kind="attribute"):
+        instruction = f"Find {text} styling products"
+        schema = {"product_type": {"canonical": "styling products", "source_text": "styling products", "aliases": []},
+                  "required_constraints": [{"canonical": text, "source_text": text, "value": text,
+                                            "kind": kind, "aliases": []}],
+                  "post_selection_constraints": [], "price_constraint": None}
+        client = QueueClient(json.dumps({"decision": "ACCEPT", "problematic_constraints": []}))
+        manager = ConstraintManager(client=client)
+        manager._schema_cache[instruction] = copy.deepcopy(schema)
+        return ProductGate(constraint_manager=manager), instruction, schema
+
+    def test_attribute_requires_selection_even_after_all_pages_inspected(self):
+        gate, instruction, schema = self.gate()
+        actions = {"clickables": ["buy now", "fragrance free", "north bondi scented"],
+                   "option_groups": {"scent": ["fragrance free", "north bondi scented"]}}
+        for selected, expected in [({}, "INSPECT"), ({"scent": "north bondi scented"}, "INSPECT"),
+                                   ({"scent": "fragrance free"}, "READY")]:
+            with self.subTest(selected=selected):
+                result = gate.evaluate(instruction, "Fragrance free styling products; Price: $32",
+                    available_actions=actions, inspection_state={"selected_options": selected,
+                        "available_sections": ["features"], "seen_sections": ["features"]})
+                self.assertEqual(result["decision"], expected)
+                self.assertEqual(result["recommended_action"], "click[buy now]" if expected == "READY" else "click[fragrance free]")
+                self.assertEqual(result["post_selection"][0]["bound_group"], "scent")
+                self.assertEqual(result["variant_state"]["checks"], result["post_selection"])
+                self.assertEqual(gate.final_audit_calls, int(expected == "READY"))
+        self.assertEqual(gate.constraint_manager.get_constraints(instruction), schema)
+        self.assertIn('"bound_group": "scent"', gate.client.prompts[0][2])
+
+    def test_fixed_attribute_without_selector_still_passes(self):
+        gate, instruction, _ = self.gate()
+        result = gate.evaluate(instruction, "Fragrance free styling products",
+            available_actions={"clickables": ["buy now"], "option_groups": {}}, inspection_state={})
+        self.assertTrue(result["ready_to_buy"])
+        self.assertEqual(result["post_selection"], [])
+
+    def test_substring_does_not_bind_an_unrelated_option(self):
+        gate, instruction, _ = self.gate("clean")
+        result = gate.evaluate(instruction, "Clean styling products",
+            available_actions={"clickables": ["buy now", "clean scent"], "option_groups": {"scent": ["clean scent"]}},
+            inspection_state={})
+        self.assertTrue(result["ready_to_buy"])
+        self.assertEqual(result["post_selection"], [])
+
+    def test_typed_selector_without_target_cannot_use_fixed_text_or_stale_selection(self):
+        for selected in ({}, {"scent": "fragrance free"}):
+            with self.subTest(selected=selected):
+                gate, instruction, _ = self.gate(kind="scent")
+                result = gate.evaluate(instruction, "Fragrance free styling products",
+                    available_actions={"clickables": ["buy now", "floral"], "option_groups": {"scent": ["floral"]}},
+                    inspection_state={"selected_options": selected})
+                self.assertEqual(result["decision"], "EXHAUSTED")
+                self.assertFalse(result["post_selection"][0]["selected"])
+                self.assertEqual(gate.final_audit_calls, 0)
+
+    def test_ambiguous_group_does_not_authorize_purchase_or_guess_click(self):
+        gate, instruction, _ = self.gate()
+        result = gate.evaluate(instruction, "Fragrance free styling products",
+            available_actions={"clickables": ["buy now", "fragrance free"],
+                               "option_groups": {"scent": ["fragrance free"], "style": ["fragrance free"]}},
+            inspection_state={"selected_options": {"style": "fragrance free"}})
+        self.assertFalse(result["ready_to_buy"])
+        self.assertIsNone(result["post_selection"][0]["available_action"])
+        self.assertEqual(gate.final_audit_calls, 0)
+
+    def test_selection_from_another_group_does_not_satisfy_binding(self):
+        gate, instruction, _ = self.gate()
+        result = gate.evaluate(instruction, "Fragrance free styling products",
+            available_actions={"clickables": ["buy now", "fragrance free"],
+                               "option_groups": {"scent": ["fragrance free"], "style": ["gel"]}},
+            inspection_state={"selected_options": {"style": "fragrance free"}})
+        self.assertEqual(result["decision"], "INSPECT")
+        self.assertEqual(result["recommended_action"], "click[fragrance free]")
+
+    def test_detail_page_keeps_candidate_selector_and_returns_to_select(self):
+        gate, instruction, _ = self.gate()
+        result = gate.evaluate(instruction, "Fragrance free styling products",
+            available_actions={"clickables": ["< prev"], "option_groups": {}},
+            inspection_state={"option_groups": {"scent": ["fragrance free"]}, "selected_options": {},
+                              "available_sections": ["features"], "seen_sections": ["features"]})
+        self.assertEqual(result["decision"], "INSPECT")
+        self.assertEqual(result["recommended_action"], "click[< prev]")
+
+    def test_selected_attribute_does_not_override_price_conflict(self):
+        gate, instruction, _ = self.gate()
+        gate.constraint_manager._schema_cache[instruction]["price_constraint"] = "under $30"
+        result = gate.evaluate(instruction, "Fragrance free styling products; Price: $32",
+            available_actions={"clickables": ["buy now"], "option_groups": {"scent": ["fragrance free"]}},
+            inspection_state={"selected_options": {"scent": "fragrance free"}})
+        self.assertEqual(result["decision"], "REJECT")
+        self.assertEqual(gate.final_audit_calls, 0)
+
+
 class MemoryTests(unittest.TestCase):
     def setUp(self):
         self.memory = EpisodeMemory()
@@ -276,6 +370,33 @@ class MemoryTests(unittest.TestCase):
 
 
 class AgentTests(unittest.TestCase):
+    def test_attribute_selector_is_executed_before_a_premature_purchase(self):
+        fixture = copy.deepcopy(FIXTURES[0])
+        fixture["schema"]["required_constraints"].append(
+            {"canonical": "blue", "source_text": "blue", "aliases": [], "value": "blue", "kind": "attribute"})
+        fixture["schema"]["post_selection_constraints"] = []
+        fixture["products"] = [fixture["products"][1]]
+        fixture["products"][0]["title"] = "Blue BPA-free tongue cleaner"
+        class Client(ScriptedClient):
+            def complete(self, prompt, purpose="policy", model=None):
+                if purpose == "product_reconsider":
+                    self.calls[purpose] += 1
+                    self.errors[purpose] += 1
+                    raise RuntimeError("Reconsideration unavailable")
+                if purpose == "policy" and '"page_type": "product"' in prompt:
+                    self.calls[purpose] += 1
+                    return "ACTION: click[buy now]"
+                return super().complete(prompt, purpose, model)
+        with patch("demo.offline.FIXTURES", [fixture]):
+            result = GatedAgent(client=Client(), env_factory=DemoEnvironment,
+                                use_query_gate=False, use_product_gate=True, max_steps=20).run(TASK)
+        self.assertTrue(result["success"])
+        self.assertEqual([row["action"] for row in result["trajectory"]],
+                         ["search[tongue cleaner]", "click[B000000002]", "click[blue]", "click[buy now]"])
+        final = next(event for event in result["gate_events"] if event["phase"] == "before_purchase")
+        self.assertEqual(final["result"]["decision"], "READY")
+        self.assertEqual(final["selected_options"], {"color": "blue"})
+
     def test_illegal_search_on_results_recovers_via_search_home_without_buying(self):
         client = QueueClient("ACTION: search[tongue cleaner]", "ACTION: search[new query]", "ACTION: search[new query]")
         result = GatedAgent(client=client, max_steps=2, env_factory=DemoEnvironment,

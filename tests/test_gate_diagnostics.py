@@ -109,6 +109,50 @@ class AuditTests(unittest.TestCase):
 
 
 class QueryModeTests(unittest.TestCase):
+    def test_unsupported_brand_rebuilds_instead_of_appending(self):
+        for group in ("required_constraints", "post_selection_constraints"):
+            for query in ("Beta precision headphones", "precision headphones"):
+                with self.subTest(group=group, query=query):
+                    manager = ConstraintManager(client=QueueClient(json.dumps(
+                        {"status": "MISSING", "evidence": "", "reason": "Acme not found"})))
+                    schema = {"product_type": {"canonical": "headphones", "aliases": []},
+                              "required_constraints": [], "post_selection_constraints": [], "price_constraint": None}
+                    schema[group] = [{"canonical": "Acme", "source_text": "Acme", "value": "Acme",
+                                      "kind": "brand", "aliases": []}]
+                    manager.get_constraints = lambda _: copy.deepcopy(schema)
+                    gate = QueryGate(constraint_manager=manager)
+                    result = gate.validate_query("Find Acme headphones", query)
+                    self.assertEqual(result["decision"], "REVISE")
+                    self.assertEqual(result["contradicted_constraints"], [])
+                    self.assertEqual(result["missing_constraints"], ["Acme"])
+                    self.assertEqual(result["revised_query"], "headphones Acme")
+                    self.assertEqual(gate.validate_query("Find Acme headphones", result["revised_query"])["decision"], "PASS")
+                    self.assertEqual(manager.client.snapshot()["llm_calls"], 1)
+
+    def test_supported_brand_preserves_query_when_an_attribute_is_missing(self):
+        manager = ConstraintManager(client=ScriptedClient())
+        schema = {"product_type": {"canonical": "headphones", "aliases": []},
+                  "required_constraints": [
+                      {"canonical": "Acme", "kind": "brand", "aliases": []},
+                      {"canonical": "cruelty free", "kind": "attribute", "aliases": []}],
+                  "post_selection_constraints": [], "price_constraint": None}
+        manager.get_constraints = lambda _: copy.deepcopy(schema)
+        gate = QueryGate(constraint_manager=manager)
+        query = "Acme precision headphones"
+        result = gate.validate_query("Find Acme cruelty free headphones", query)
+        self.assertEqual(result["revised_query"], query + " cruelty free")
+        self.assertEqual(gate.validate_query("Find Acme cruelty free headphones", result["revised_query"])["decision"], "PASS")
+
+    def test_optional_nonblocking_modes_still_allow_brand_omission(self):
+        for mode in ("layered", "direction"):
+            manager = ConstraintManager(client=ScriptedClient())
+            manager.get_constraints = lambda _: {"product_type": {"canonical": "headphones", "aliases": []},
+                "required_constraints": [{"canonical": "Acme", "kind": "brand", "aliases": []}],
+                "post_selection_constraints": [], "price_constraint": None}
+            result = QueryGate(constraint_manager=manager, mode=mode).validate_query("Find Acme headphones", "headphones")
+            self.assertEqual(result["decision"], "PASS")
+            self.assertIsNone(result["revised_query"])
+
     def gate(self, mode):
         manager = ConstraintManager(client=ScriptedClient())
         manager.get_constraints = lambda _: copy.deepcopy(FIXTURES[0]["schema"])

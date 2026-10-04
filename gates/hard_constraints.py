@@ -112,8 +112,10 @@ def check_option(constraint, option_groups, selected_options):
     matching = [(key, value) for key, values in groups.items() for value in values
                 if normalize_option(value) in candidates]
     selected = [(key, value) for key, value in selected_options.items()
-                if key in groups and normalize_option(value) in candidates]
+                if any(key == group and normalize_option(value) == normalize_option(available)
+                       for group, available in matching)]
     return {"constraint": constraint.get("canonical", ""), "kind": kind,
             "selected": bool(selected), "available": bool(matching),
+            "matching_groups": list(dict.fromkeys(key for key, _ in matching)),
             "status": "SUPPORTED" if selected else "MISSING",
             "available_action": matching[0][1] if matching else None}

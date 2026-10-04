@@ -1,90 +1,70 @@
-# Constraint-Aware Shopping Agent cz-v1
+# Constraint-Aware Shopping Agent
 
-cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整合为一套可消融的购物 Agent。四组实验共享基础策略、任务内记忆、模型、动作校验与交互预算；仅切换 Query Gate 和 Product Gate。
+保留共享 ReAct 策略，用两个 Gate 检查搜索和购买。四组使用同一策略、任务内记忆、模型和交互预算，只切换 Gate。
 
-当前已完成核心实现、独立标注工具、审计重放与真实 WebShop 四组评测。最新一轮各 31 任务、最多 20 步，满分成功数为 Baseline 6、Query-only 4、Product-only 15、Full 16；详细条件、调用成本和局限见 [最新真实实验记录](docs/LIVE_GATE_DIAGNOSTICS.md)。b8d48c5 历史快照的 6、5、12、9 保留在 [原测试记录](docs/LIVE_VALIDATION.md)，两轮不能视为单项修改的因果对照。[Gate 实验设计](docs/GATE_EXPERIMENTS.md) 描述 H1/H2 等可选干预；本轮未开启这些干预。独立语义指标仍需人工标注；合成演示与真实成绩单独存放。新环境仍需准备上游依赖、商品数据和 Lucene 索引。
+## 核心流程
 
-## 执行流程
+1. Gate 开启时，Constraint Manager 从用户指令提取并验证约束。
+2. ReAct 根据当前页面、记忆和 Gate 反馈提出动作。
+3. 搜索经过 Query Gate；导航和选项选择交给 WebShop。
+4. Product Gate 检查当前候选的可见证据，并把结果反馈给 ReAct。
+5. ReAct 提出购买时，再检查当前商品是否 READY，然后执行购买。重复以上交互直到完成或预算耗尽。
 
-用户指令 → 共享约束提取与验证（Gate 开启时）→ ReAct 生成动作 → Query Gate 检查并修复搜索 → WebShop 交互 → 累积当前商品的可见证据 → Product Gate → 最终购买检查。
+Baseline 不提取结构化约束。Query-only 不检查购买资格；Product-only 不检查搜索。模型只看到用户指令与可见交互内容，不读取评分标签或目标 ASIN。
 
-- Baseline 不提取结构化约束，也不启用约束购买门控。
-- Query-Gated 只检查搜索；Product-Gated 只检查商品；Full 同时检查两者。
-- 任务标注、目标 ASIN 和评分属性只用于环境与离线评测，不进入模型提示词。
-- 每个任务重置记忆与约束缓存，所有配置保留相同的任务内候选比较能力。
-- 开启 Product Gate 时，只有当前商品 READY 才能购买。类别、属性、价格和选项都要检查；硬约束冲突不能被最终语义审计覆盖。
-- 缺少约束证据继续检查，证据已用尽则离开。提取/验证失败会报告错误并停止，不静默关闭 Gate。
-- 统一用终止任务且 reward > 0.999999 表示满分成功；满分 reward 不等于必须购买某个唯一 ASIN。
+| 配置 | Query Gate | Product Gate |
+|---|---|---|
+| baseline | 关 | 关 |
+| query | 开 | 关 |
+| product | 关 | 开 |
+| full | 开 | 开 |
 
-## Gates 部分
+Query Gate 默认 **coverage**：检查查询的约束覆盖，遗漏时保留原查询补充，冲突时重建。Product Gate 默认 **grounded** 审计：复核已有匹配，拒绝须指出具体约束和可见证据，不得新增验收条件。价格与选项的硬检查不能被审计覆盖。
 
-- [gates/constraint_manager.py](gates/constraint_manager.py)：自然语言约束提取、验证、规范化、别名匹配、语义回退、任务内缓存。两个 Gate 共用一个实例。
-- [gates/query_gate.py](gates/query_gate.py)：搜索词中的类别、属性、品牌、选项和价格条件检查；返回 PASS、REVISE 或 UNAVAILABLE。
-- [gates/product_gate.py](gates/product_gate.py)：当前候选的完整证据检查、规则与语义判断、最终审计；返回 READY、INSPECT、REJECT、EXHAUSTED 或 UNAVAILABLE。
-- [gates/hard_constraints.py](gates/hard_constraints.py)：Decimal 价格边界（严格/包含上限、下限、区间）及选项值精确匹配；规则结果不由 LLM 改写。
-- [gates/audit_prompts.py](gates/audit_prompts.py)：审计职责、结构化错配验证及三个历史提示词版本；独立实验可选择四个审计臂。
+Product Gate 的 READY 表示允许购买，由 ReAct 决定是否购买；INSPECT 表示继续查证或选择选项；REJECT 表示候选存在冲突；EXHAUSTED 表示当前候选的可用证据耗尽。约束提取或验证失败会记录错误并停止。
 
-## Agent 部分
+## 正式运行：一个入口
 
-- [agent/react_agent.py](agent/react_agent.py)：统一 ReAct 动作/搜索生成、Gate 反馈、搜索修复、动作重试、购买前检查及轨迹记录。
-- [agent/episode_memory.py](agent/episode_memory.py)：候选、页面证据、已检查页面、当前选项及近期推理；处理搜索、返回和候选切换。
-- [agent/baseline_agent.py](agent/baseline_agent.py)：两个 Gate 都关闭的正式 baseline。
-- [agent/gated_agent.py](agent/gated_agent.py)：用两个开关组合 Query、Product、Full，继承同一 ReAct 实现。
-- [agent/llm_client.py](agent/llm_client.py)：共享可注入客户端、统一模型、超时、所有调用/错误与 token 计数；SDK 隐式重试关闭。
-- agent/No-memory ReAct.py：旧文件名的兼容入口，现指向统一 baseline；历史 main 成绩必须单独处理。
+在仓库根目录运行，使用已有的 Windows webshop Conda 环境。API key 从 `DEEPSEEK_API_KEY` 环境变量读取，不会自动读取 `.env`。以下命令会调用付费 API：
 
-## 离线验证与演示
+```powershell
+.\evaluation\run_live.ps1 -MaxSteps 20 -Repeats 1 -OutputDir results/webshop
+```
 
-核心回归与合成演示仅依赖 Python 标准库，从仓库根目录运行：
+默认运行四组，使用 coverage、grounded、seed=42；可选研究干预均关闭。数据文件含 100 个商品记录，其中 31 个有 instruction，因此默认每组运行 31 个任务。人工标注不是启动条件。
 
-~~~bash
+常用调整：`-Configs baseline` 只跑基线；`-Repeats 3` 做三次重复；同一实验续跑用 `-Resume`。输出目录应为新目录，已有实验只有参数和源码一致时才能续跑。需要指定环境用 `-PythonPath`；若系统代理导致 API TLS 连接问题，可加 `-DirectApi`。完整运行条件与输出说明见 [evaluation/README.md](evaluation/README.md)。
+
+自动报告满分成功率、平均 reward、交互步数、模型调用与 token。每组保存轨迹和汇总，根目录生成 `report.html`、`comparison.json`、`manifest.json` 和运行代码快照。满分成功要求任务终止且 reward > 0.999999；部分成功单独统计。
+
+## 读代码：Agent 与 Gates
+
+| 部分 | 文件 | 职责 |
+|---|---|---|
+| Agent | [agent/react_agent.py](agent/react_agent.py) | 统一策略、动作执行、Gate 反馈与购买检查 |
+| Agent | [agent/episode_memory.py](agent/episode_memory.py) | 候选证据、已看页面、当前选项与近期记忆 |
+| Agent | [agent/baseline_agent.py](agent/baseline_agent.py)、[agent/gated_agent.py](agent/gated_agent.py) | 四组配置，共用 ReAct 实现 |
+| Agent | [agent/llm_client.py](agent/llm_client.py) | 共享模型客户端与调用计数 |
+| Gates | [gates/constraint_manager.py](gates/constraint_manager.py) | 约束提取、验证、匹配与缓存 |
+| Gates | [gates/query_gate.py](gates/query_gate.py) | 搜索检查和修复 |
+| Gates | [gates/product_gate.py](gates/product_gate.py) | 候选检查、审计与购买资格 |
+| Gates | [gates/hard_constraints.py](gates/hard_constraints.py)、[gates/audit_prompts.py](gates/audit_prompts.py) | 价格/选项规则与审计标准 |
+
+## 不调用 API 的验证
+
+```powershell
 python -m unittest discover -s tests -p 'test_*.py' -v
-python -m demo.run_demo --output-dir results/demo-cz-v1
-~~~
+python -m demo.run_demo --output-dir results/demo-simple
+```
 
-打开生成的 results/demo-cz-v1/report.html，可筛选四组配置并展开步骤查看提议、执行、拦截与 Gate 证据。演示使用固定合成商品、脚本化模型和独立编写的预期标签，页面明确标记为合成演示。它验证执行链路，不能证明真实模型性能。
+演示的 `report.html` 展示四组轨迹，使用合成商品和脚本化模型，只验证执行链路。
 
-## 真实 WebShop 实验
+## 实验记录与可选工具
 
-Windows 已有 webshop Conda 环境时，可使用下面的启动器；它会选择该环境的 Python/Java，退出时恢复进程环境变量。API key 从环境读取，不输出密钥。旧版 openai 0.28 环境使用无隐式重试的 HTTP 兼容接口，无需升级或破坏原环境。
+最新真实实验在每组 31 任务、20 步、单次重复下，满分成功数为 baseline 6、query 4、product 15、full 16。条件、成本和局限见 [真实实验记录](docs/LIVE_GATE_DIAGNOSTICS.md)；这是历史运行结果，不能当作本次入口整理后重新测得的成绩。
 
-~~~powershell
-.\evaluation\run_live.ps1 -MaxSteps 20 -Repeats 1 -OutputDir results/cz-v1-live
-~~~
+正式流程只需要四组运行与自动指标。审计重放、历史提示词、其他 Query 模式、共享 schema 和独立人工评估保留在 [可选研究说明](docs/GATE_EXPERIMENTS.md)，使用 `evaluation/run_live_advanced.ps1` 或对应诊断工具。未提供独立标签时，语义覆盖、误接受/误拒绝等指标保持 null；Gate 自己的判断不能充当标准答案。
 
-如系统代理导致 DeepSeek TLS 连接失败，可加 -DirectApi，仅让 API 域名走直连，保留 TLS 验证。可用 -PythonPath 显式指定已有环境，-Configs baseline 只跑基线；相同参数续跑加 -Resume。
+[Proposal 对应清单](docs/PROPOSAL_ALIGNMENT.md) · [合并记录](docs/MERGE_NOTES.md) · [早期实验记录](docs/LIVE_VALIDATION.md)
 
-保留上游 WebShop 依赖版本。建议在独立的、可安装这些旧版本的 Python/Java 环境中准备依赖与数据。setup.sh 使用 Bash、conda、OpenJDK 11 和 gdown；Windows 可在 WSL 中运行上游安装流程。
-
-~~~bash
-pip install -r requirements.txt
-bash setup.sh -d small
-~~~
-
-设置环境变量（不会自动读取 .env）：
-
-~~~powershell
-$env:DEEPSEEK_API_KEY = 'your_key'
-$env:SHOPPING_MODEL = 'deepseek-chat'
-~~~
-
-预检及统一实验：
-
-~~~bash
-python -m evaluation.preflight
-python -m evaluation.run_experiment --configs baseline query product full --dataset evaluation/webshop_test_100.json --model deepseek-chat --max-steps 20 --num-products 1000 --repeats 3 --seed 42 --output-dir results/cz-v1-live
-~~~
-
-evaluation/webshop_test_100.json 有 100 个商品记录，其中 31 个有 instruction。evaluation/tasks.json 是其中 5 个真实任务的样例，不再使用与 WebShop ASIN 不匹配的占位任务。完整参数、独立标注与指标定义见 [evaluation/README.md](evaluation/README.md)。
-
-每组生成 results.jsonl 和 summary.json；根目录生成 comparison.json、report.html、manifest.json 与代码快照。相同参数可加 --resume；任务、模型、预算、代码或标注变化时拒绝混用已有结果。LLM 即使 temperature=0 仍可能产生变化，应报告重复实验结果。
-
-## Proposal 对应关系
-
-详细的需求与实现清单见 [docs/PROPOSAL_ALIGNMENT.md](docs/PROPOSAL_ALIGNMENT.md)。分支来源、修复与验证记录见 [docs/MERGE_NOTES.md](docs/MERGE_NOTES.md)。
-
-Query Coverage、Product Satisfaction 与误接受/误拒绝使用独立标注，不使用 Gate 自己的判断作为答案。无标注或相应分母为零时返回 null，并同时报告标注覆盖率。真实任务的人工标注与实验分析属于仍需执行的研究步骤。
-
-## 上游许可
-
-项目基于 Princeton WebShop。上游许可保存在 THIRD_PARTY_LICENSE_WebShop.md。保留 tests/web-agent-site、tests/transfer 及相应 transfer 辅助模块用于上游回归；这些需要完整环境依赖，与当前离线核心测试分开运行。
+项目基于 Princeton WebShop，上游许可保存在 [THIRD_PARTY_LICENSE_WebShop.md](THIRD_PARTY_LICENSE_WebShop.md)。上游依赖与回归目录保留。

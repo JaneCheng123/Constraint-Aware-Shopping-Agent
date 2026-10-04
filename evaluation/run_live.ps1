@@ -1,63 +1,44 @@
+<#
+.SYNOPSIS
+Run the four proposal configurations with the shared ReAct policy.
+.DESCRIPTION
+Uses coverage Query Gate and grounded Product Gate. Experimental interventions
+are disabled. Calls the paid model API when executed; no manual labels required.
+Advanced experiments use evaluation/run_live_advanced.ps1.
+.EXAMPLE
+.\evaluation\run_live.ps1 -MaxSteps 20 -OutputDir results/webshop -DirectApi
+#>
+[CmdletBinding()]
 param(
     [string]$PythonPath,
+    [ValidateSet('baseline', 'query', 'product', 'full')]
     [string[]]$Configs = @('baseline', 'query', 'product', 'full'),
+    [ValidateRange(1, 2147483647)]
     [int]$MaxSteps = 20,
+    [ValidateRange(1, 2147483647)]
     [int]$Repeats = 1,
-    [int]$Seed = 42,
     [string]$Model = 'deepseek-chat',
     [string]$Dataset = 'evaluation/webshop_test_100.json',
-    [string]$OutputDir = 'results/cz-v1-live',
-    [ValidateSet('coverage', 'layered', 'direction')][string]$QueryMode = 'coverage',
-    [ValidateSet('legacy', 'benchmark', 'variant', 'grounded')][string]$AuditVersion = 'grounded',
-    [string]$FrozenSchemas,
-    [switch]$VariantReview,
-    [switch]$DeduplicateCandidates,
+    [string]$OutputDir = 'results/webshop',
     [switch]$Resume,
     [switch]$DirectApi
 )
 
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
-if (-not $PythonPath) {
-    $candidatePython = Join-Path $env:USERPROFILE 'miniconda3\envs\webshop\python.exe'
-    $PythonPath = if (Test-Path -LiteralPath $candidatePython) { $candidatePython } else { (Get-Command python).Source }
+# Keep the environment setup and runner shared with the advanced entry point.
+# The formal entry deliberately exposes only the proposal's four configurations.
+$runParameters = @{
+    PythonPath = $PythonPath
+    Configs = $Configs
+    MaxSteps = $MaxSteps
+    Repeats = $Repeats
+    Seed = 42
+    Model = $Model
+    Dataset = $Dataset
+    OutputDir = $OutputDir
+    QueryMode = 'coverage'
+    AuditVersion = 'grounded'
+    Resume = $Resume
+    DirectApi = $DirectApi
 }
-$environmentRoot = Split-Path -Parent $PythonPath
-$javaCandidate = Join-Path $environmentRoot 'Library\lib\jvm'
-$previousJava = $env:JAVA_HOME
-$previousPath = $env:PATH
-$previousNoProxy = $env:NO_PROXY
-$previousEncoding = $env:PYTHONIOENCODING
-Push-Location $projectRoot
-try {
-    if (Test-Path -LiteralPath (Join-Path $javaCandidate 'bin\server\jvm.dll')) {
-        $env:JAVA_HOME = $javaCandidate
-        $env:PATH = "$javaCandidate\bin;$environmentRoot\Library\bin;$env:PATH"
-    }
-    $env:PYTHONIOENCODING = 'utf-8'
-    if ($DirectApi) {
-        $apiBase = if ($env:DEEPSEEK_BASE_URL) { $env:DEEPSEEK_BASE_URL } else { 'https://api.deepseek.com' }
-        $apiHostname = ([uri]$apiBase).Host
-        $env:NO_PROXY = (@($previousNoProxy, $apiHostname) | Where-Object { $_ }) -join ','
-    }
-    & $PythonPath -m evaluation.preflight --num-products 1000
-    if ($LASTEXITCODE -ne 0) { throw 'WebShop prerequisite check failed.' }
-    $runArguments = @('-m', 'evaluation.run_experiment', '--configs') + $Configs + @(
-        '--dataset', $Dataset, '--model', $Model, '--max-steps', "$MaxSteps",
-        '--num-products', '1000', '--repeats', "$Repeats", '--seed', "$Seed", '--output-dir', $OutputDir,
-        '--query-mode', $QueryMode, '--audit-version', $AuditVersion
-    )
-    if ($FrozenSchemas) { $runArguments += @('--frozen-schemas', $FrozenSchemas) }
-    if ($VariantReview) { $runArguments += '--variant-review' }
-    if ($DeduplicateCandidates) { $runArguments += '--deduplicate-candidates' }
-    if ($Resume) { $runArguments += '--resume' }
-    & $PythonPath @runArguments
-    if ($LASTEXITCODE -ne 0) { throw 'WebShop experiment failed; inspect the saved records.' }
-}
-finally {
-    $env:JAVA_HOME = $previousJava
-    $env:PATH = $previousPath
-    $env:NO_PROXY = $previousNoProxy
-    $env:PYTHONIOENCODING = $previousEncoding
-    Pop-Location
-}
+& (Join-Path $PSScriptRoot 'run_live_advanced.ps1') @runParameters

@@ -2,6 +2,8 @@
 
 cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct 推理、动作检查、重试和候选记忆。四组共用同一策略，Gate 仅由两个开关控制。
 
+正式入口为 `evaluation/run_live.ps1`，默认 20 步、coverage Query Gate 和 grounded Product Gate。人工标注及可选研究干预不进入日常主流程；高级实验使用 `evaluation/run_live_advanced.ps1`。本次整理只简化入口与说明，保留策略和 Gate 判断逻辑。
+
 ## Gates 模块列表
 
 1. gates/constraint_manager.py
@@ -55,10 +57,10 @@ cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct �
 | Product Gate | gates/product_gate.py / hard_constraints.py | 已实现 |
 | 四种 Agent 配置 | evaluation/run_experiment.py 的 CONFIGURATIONS | 已实现 |
 | 统一 reward/success/效率评测 | evaluation/metrics.py / run_experiment.py | 已实现 |
-| 独立约束和误接受/误拒绝评测 | evaluation/export_annotations.py / metrics.py / summarize.py | 已实现工具，真实标签需要人工完成 |
+| 独立约束和误接受/误拒绝评测 | evaluation/export_annotations.py / metrics.py / summarize.py | 可选独立分析工具，相关指标需真实人工标签；自动成功率无需标签 |
 | 可复现项目包 | manifest、代码快照、CI、README、requirements | 已实现 |
 | End-to-end Demo | demo/run_demo.py / offline.py / render_report.py | 离线四组演示可运行 |
-| 真实实验结果及失败分析 | results/cz-v1-live / docs/LIVE_VALIDATION.md | 已完成 31 任务四组单轮真实评测；独立人工标签仍需完成 |
+| 真实实验结果及失败分析 | docs/LIVE_GATE_DIAGNOSTICS.md / docs/LIVE_VALIDATION.md | 已记录 31 任务四组真实评测；独立语义指标尚缺人工标签 |
 
 ## 实验边界
 

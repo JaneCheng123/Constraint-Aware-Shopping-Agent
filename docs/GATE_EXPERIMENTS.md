@@ -1,4 +1,6 @@
-# Gate 改进与受控实验
+# 可选研究实验与独立评估
+
+正式流程使用 `evaluation/run_live.ps1`，只运行四组 ReAct + Gate 配置并自动统计结果。本文件的高级设置和人工评估用于深入研究，不是运行项目的前置步骤。高级完整任务入口为 `evaluation/run_live_advanced.ps1`；保留这些工具以便复查历史实验。
 
 本轮保留 cz-v1 的共享 ReAct、价格/选项硬检查、购买阻断和满分评分。默认最终审计改用 grounded：复核已有匹配、禁止新增验收条件、区分宽泛类别与显式组合购买。拒绝必须给出已存在的约束名及可见原文引用；不确定使用 INSPECT。格式不合格仍阻断购买，临时 API/格式错误不缓存。
 
@@ -62,11 +64,32 @@ python -m evaluation.matcher_benchmark --output-dir results/gate-diagnostics/mat
 
 ```powershell
 python -m evaluation.frozen_schemas --results results/cz-v1-live/product/results.jsonl --output results/gate-diagnostics/frozen-schemas-final.json
-.\evaluation\run_live.ps1 -Configs product,full -FrozenSchemas results/gate-diagnostics/frozen-schemas-final.json -QueryMode layered -OutputDir results/gate-layered-controlled -DirectApi
+.\evaluation\run_live_advanced.ps1 -Configs product,full -FrozenSchemas results/gate-diagnostics/frozen-schemas-final.json -QueryMode layered -OutputDir results/gate-layered-controlled -DirectApi
 .\evaluation\run_live.ps1 -Repeats 3 -MaxSteps 20 -OutputDir results/gate-e2e-next -DirectApi
 ```
 
-run_live.ps1 的命令会真实运行 WebShop 并调用 API；上面的示例未执行。为每个干预使用不同目录。人工 schema 也可使用相同 bundle 格式，provenance 必须注明独立标注来源，任务与指令必须完全对应，usable schema 必须有 validation.valid=true 并通过源文锚定检查。
+两个 run_live 启动器都会真实运行 WebShop 并调用 API；上面的示例未执行。为每个干预使用不同目录。人工 schema 也可使用相同 bundle 格式，provenance 必须注明独立标注来源，任务与指令必须完全对应，usable schema 必须有 validation.valid=true 并通过源文锚定检查。
+
+## 可选独立标注
+
+自动成功率、reward、步数和调用成本不需要人工标签。只有需要评价 Gate 判断是否正确、具体约束是否满足时才使用本节。先导出已保存的轨迹，再独立阅读 instruction、可见证据和选项：
+
+```powershell
+python -m evaluation.export_annotations results/webshop/baseline/results.jsonl results/webshop/query/results.jsonl results/webshop/product/results.jsonl results/webshop/full/results.jsonl --output results/webshop/review-draft.json
+python -m evaluation.summarize results/webshop --annotations results/webshop/reviewed.json
+```
+
+两条命令之间需要填写并保存 `reviewed.json`；导出和重新汇总不调用 LLM。每条记录保留 task_id、kind、query 或 product_id、selected_options。由独立审查者填写 acceptable=true/false、reviewer，以及 instruction 全部明确要求的 constraint_statuses（SUPPORTED/MISSING/CONTRADICTED）。无法判断的草稿值保留 null，不能作为标签；不要参考 Gate verdict 或用抽取 schema 充当标准答案。合成演示标签不能替代真实标签。
+
+| 独立指标 | 定义 |
+|---|---|
+| Query Constraint Coverage | 已执行且已标注搜索中的 SUPPORTED 条件 / 全部标注条件 |
+| Product Constraint Satisfaction | 已购买且已标注商品/选项中的 SUPPORTED 条件 / 全部标注条件 |
+| Purchase Satisfaction | acceptable 购买 / 全部已标注购买 |
+| False Acceptance Rate | 无效标注样本被接受 / 已明确接受或拒绝的无效标注样本 |
+| False Rejection Rate | 有效标注样本被拒绝 / 已明确接受或拒绝的有效标注样本 |
+
+Query PASS 为接受、REVISE 为拒绝原查询；Product READY 为接受、REJECT/EXHAUSTED 为拒绝。INSPECT/UNAVAILABLE 单列 deferred。相同任务的相同输入、选项、证据与决策重复发生时去重。未标注事件单列 unlabelled，分母为零返回 null，必须同时报告标签覆盖率。不同选项是不同标注状态，WebShop reward 不能替代独立语义审查。标签 hash 保存到分析结果，原运行 manifest 和代码快照保留。
 
 ## Gates / Agent 对应
 
@@ -77,6 +100,7 @@ run_live.ps1 的命令会真实运行 WebShop 并调用 API；上面的示例未
 - agent/episode_memory.py：候选状态、可选 EXHAUSTED 重访过滤。
 - evaluation/audit_replay.py：状态提取、盲审草稿、计划/真实重放及统计。
 - evaluation/matcher_benchmark.py：合成冲突/遗漏诊断。
-- evaluation/frozen_schemas.py、run_experiment.py、run_live.ps1：共享抽取与实验设置追踪。
+- evaluation/run_live.ps1：固定 coverage + grounded 的正式四组入口。
+- evaluation/frozen_schemas.py、run_experiment.py、run_live_advanced.ps1：共享抽取与高级实验设置追踪。
 
 69 项无网络回归与 17 项上游测试已通过；其中 25 项覆盖新干预的缓存绕过、语义约束引用、UNKNOWN 不放行、H1 不改类别冲突、共享抽取失败不压低 Baseline、精确证据标签连接及去重的状态边界。随后已完成一轮真实四组成功率评测；H1/H2 和候选去重的独立干预效果仍未验证。

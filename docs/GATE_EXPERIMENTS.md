@@ -2,7 +2,7 @@
 
 本轮保留 cz-v1 的共享 ReAct、价格/选项硬检查、购买阻断和满分评分。默认最终审计改用 grounded：复核已有匹配、禁止新增验收条件、区分宽泛类别与显式组合购买。拒绝必须给出已存在的约束名及可见原文引用；不确定使用 INSPECT。格式不合格仍阻断购买，临时 API/格式错误不缓存。
 
-这些是实现后的行为，不是成功率已经提高的证据。原 31 任务主实验仍属于 b8d48c5，不能把历史成绩标成新版本成绩。没有更改旧结果，没有自动调用付费 API。
+这些是实现后的行为，机制效果需要独立验证。原 31 任务主实验仍属于 b8d48c5，不能把历史成绩标成新版本成绩。用户随后授权的付费诊断和新一轮 20 步实验已完成，见 [最新真实实验记录](LIVE_GATE_DIAGNOSTICS.md)；旧结果保持原样。
 
 ## 默认行为与可选干预
 
@@ -56,7 +56,7 @@ python -m evaluation.audit_replay replay --cases results/gate-diagnostics/cases.
 python -m evaluation.matcher_benchmark --output-dir results/gate-diagnostics/matcher-plan
 ```
 
-本次已生成 15 个冻结证据状态、cases.review.json 盲审草稿、四臂 1200 次调用计划，以及 9 个 matcher 合成例子，均未调用 API。正式重放选择新的 output-dir 并加 --execute；可加 --labels 已填写的状态级人工标签文件。matcher 同样需 --execute 才调用 API。按模型实际计费，增加提示词臂不是零成本。
+最初生成了 15 个冻结证据状态、cases.review.json 盲审草稿、四臂 1200 次调用计划，以及 9 个 matcher 合成例子。2026-10-04 已在独立目录完成真实重放、matcher 诊断和四组 20 步完整任务，见 [真实实验记录](LIVE_GATE_DIAGNOSTICS.md)。重新运行正式重放须选择新的 output-dir 并加 --execute；可加 --labels 已填写的状态级人工标签文件。matcher 同样需 --execute 才调用 API。按模型实际计费，增加提示词臂不是零成本。
 
 共享抽取与完整任务示例：
 
@@ -79,4 +79,4 @@ run_live.ps1 的命令会真实运行 WebShop 并调用 API；上面的示例未
 - evaluation/matcher_benchmark.py：合成冲突/遗漏诊断。
 - evaluation/frozen_schemas.py、run_experiment.py、run_live.ps1：共享抽取与实验设置追踪。
 
-69 项无网络回归与 17 项上游测试已通过；其中 25 项覆盖新干预的缓存绕过、语义约束引用、UNKNOWN 不放行、H1 不改类别冲突、共享抽取失败不压低 Baseline、精确证据标签连接及去重的状态边界。没有重跑真实四组成功率。
+69 项无网络回归与 17 项上游测试已通过；其中 25 项覆盖新干预的缓存绕过、语义约束引用、UNKNOWN 不放行、H1 不改类别冲突、共享抽取失败不压低 Baseline、精确证据标签连接及去重的状态边界。随后已完成一轮真实四组成功率评测；H1/H2 和候选去重的独立干预效果仍未验证。

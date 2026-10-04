@@ -235,6 +235,19 @@ class ProductGateTests(unittest.TestCase):
         self.assertFalse(result["ready_to_buy"])
         self.assertEqual(result["recommended_action"], "click[< prev]")
 
+    def test_final_audit_receives_visible_selection_and_does_not_reuse_other_variant(self):
+        client = QueueClient(json.dumps({"decision": "ACCEPT"}), json.dumps({"decision": "REJECT"}))
+        gate = ProductGate(constraint_manager=ConstraintManager(client=client))
+        schema = copy.deepcopy(FIXTURES[0]["schema"])
+        blue = {"selected_options": {"color": "blue"}, "option_groups": {"color": ["blue", "red"]}}
+        red = {"selected_options": {"color": "red"}, "option_groups": {"color": ["blue", "red"]}}
+        evidence = "BPA-free tongue cleaner; Price: $9"
+        self.assertEqual(gate._final_audit(TASK["instruction"], schema, evidence, blue)["decision"], "ACCEPT")
+        self.assertEqual(gate._final_audit(TASK["instruction"], schema, evidence, red)["decision"], "REJECT")
+        self.assertEqual(gate._final_audit(TASK["instruction"], schema, evidence, blue)["decision"], "ACCEPT")
+        self.assertEqual(gate.final_audit_calls, 2)
+        self.assertIn('"selected_options": {"color": "blue"}', client.prompts[0][2])
+
 
 class MemoryTests(unittest.TestCase):
     def setUp(self):

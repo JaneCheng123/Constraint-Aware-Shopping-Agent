@@ -75,16 +75,24 @@ class ProductGate:
     def _resolve_constraint(self, evidence, constraint, context="visible evidence"):
         return self._resolve(evidence, constraint)
 
-    def _final_audit(self, instruction, schema, evidence):
-        key = (instruction, json.dumps(schema, sort_keys=True), evidence)
+    def _final_audit(self, instruction, schema, evidence, variant_state=None):
+        variant_state = variant_state or {}
+        key = (instruction, json.dumps(schema, sort_keys=True), evidence,
+               json.dumps(variant_state, sort_keys=True))
         if key in self._audit_cache:
             return dict(self._audit_cache[key])
         prompt = f"""Audit a candidate after all deterministic and semantic checks.
 User instruction: {instruction}
 Validated schema: {json.dumps(schema, ensure_ascii=False)}
 Visible evidence: {evidence}
+Current visible variant state and deterministic checks: {json.dumps(variant_state, ensure_ascii=False)}
 Use only the visible evidence, preserving meaning and polarity. Category membership
 must be established even for broad categories. Do not infer unseen properties.
+Checked radio options identify the currently selected variant. Generic product
+titles and descriptions may describe a default variant; do not reject a confirmed
+matching selection merely because that generic text names another size/color.
+An explicit conflict about the selected variant must still be reported. Do not
+infer selection from an option merely appearing in the list of available options.
 Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason.
 """
         try:
@@ -176,7 +184,8 @@ Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason
             decision = "EXHAUSTED" if exhausted else "INSPECT"
             reason = "Unresolved requirements: " + ", ".join(missing)
         else:
-            audit = self._final_audit(instruction, schema, evidence)
+            audit = self._final_audit(instruction, schema, evidence,
+                {"option_groups": groups, "selected_options": selected, "checks": options})
             decision = {"ACCEPT": "READY", "REJECT": "REJECT", "INSPECT": "INSPECT"}[audit["decision"]]
             reason = audit.get("reason", "")
             if audit.get("error"):

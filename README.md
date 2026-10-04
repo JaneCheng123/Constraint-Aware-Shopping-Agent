@@ -2,7 +2,7 @@
 
 cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整合为一套可消融的购物 Agent。四组实验共享基础策略、任务内记忆、模型、动作校验与交互预算；仅切换 Query Gate 和 Product Gate。
 
-当前已完成核心实现、独立标注工具，以及真实 WebShop 四组各 31 任务、20 步预算的一轮评测。满分成功数分别为 Baseline 6、Query-only 5、Product-only 12、Full 9；另有 43 项核心与 17 项上游测试通过。详见 [真实测试记录](docs/LIVE_VALIDATION.md)。独立语义指标仍需人工标注；合成演示与真实成绩单独存放。新环境仍需准备上游依赖、商品数据和 Lucene 索引。
+当前已完成核心实现、独立标注工具，以及真实 WebShop 四组各 31 任务、20 步预算的一轮评测。满分成功数分别为 Baseline 6、Query-only 5、Product-only 12、Full 9；另有 44 项核心与 17 项上游测试通过。详见 [真实测试记录](docs/LIVE_VALIDATION.md)。独立语义指标仍需人工标注；合成演示与真实成绩单独存放。新环境仍需准备上游依赖、商品数据和 Lucene 索引。
 
 ## 执行流程
 

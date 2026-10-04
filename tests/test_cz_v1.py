@@ -33,7 +33,7 @@ class ClientCompatibilityTests(unittest.TestCase):
     def test_legacy_environment_uses_counted_http_without_global_sdk_changes(self):
         from unittest.mock import Mock
         response = Mock()
-        response.json.return_value = {"choices": [{"message": {"content": "OK"}}],
+        response.json.return_value = {"model": "reported-model", "choices": [{"message": {"content": "OK"}}],
                                       "usage": {"prompt_tokens": 4, "completion_tokens": 1}}
         session = Mock()
         session.post.return_value = response
@@ -51,6 +51,7 @@ class ClientCompatibilityTests(unittest.TestCase):
         self.assertEqual(session.post.call_args.kwargs["timeout"], 12)
         self.assertEqual(client.snapshot()["llm_calls"], 2)
         self.assertEqual(client.snapshot()["input_tokens"], 8)
+        self.assertEqual(client.snapshot()["provider_model_counts"], {"reported-model": 2})
 
     def test_http_error_is_counted_once_without_retry(self):
         from unittest.mock import Mock

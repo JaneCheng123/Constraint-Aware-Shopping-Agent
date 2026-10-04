@@ -179,6 +179,8 @@ def get_attribute_reward(purchased_product, goal):
     """Determines whether purchased products shares same attributes as goal"""
     purchased_attrs = purchased_product['Attributes']
     goal_attrs = goal['attributes']
+    if not goal_attrs:
+        return None, 0
 
     num_attr_matches = 0
     for g_attr in goal_attrs:
@@ -232,12 +234,15 @@ def get_reward(purchased_product, goal, price, options, **kwargs):
     r_price = (
         price <= goal['price_upper']
     ) if goal['price_upper'] > 0 else None
+    if goal.get('price_bounds'):
+        from gates.hard_constraints import price_satisfies
+        r_price = price_satisfies(price, goal['price_bounds'])
 
     r_att, num_attr_matches = get_attribute_reward(purchased_product, goal)
 
     r_option, num_option_matches = get_option_reward(
         list(options.values()),
-        goal['goal_options'].items()
+        goal['goal_options'].values()
         if isinstance(goal['goal_options'], dict)
         else goal['goal_options']
     )

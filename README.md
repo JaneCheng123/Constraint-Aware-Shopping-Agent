@@ -1,736 +1,81 @@
-# Constraint-Aware Shopping Agent
+# Constraint-Aware Shopping Agent cz-v1
 
-A constraint-aware LLM shopping agent built on top of the [WebShop](https://github.com/princeton-nlp/WebShop) environment.
+cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整合为一套可消融的购物 Agent。四组实验共享基础策略、任务内记忆、模型、动作校验与交互预算；仅切换 Query Gate 和 Product Gate。
 
-This project studies whether explicit constraint checking can improve the reliability of LLM-based shopping agents.
+当前已完成核心实现、离线回归测试、独立标注评测工具和轨迹演示。真实 WebShop 成绩需要安装上游环境、下载商品数据、建立 Lucene 索引并运行实验；仓库不把合成演示结果作为真实基准结果。
 
-We introduce a shared **ConstraintManager** and two optional reasoning modules:
+## 执行流程
 
-- **Query Gate** — checks whether generated search queries preserve important user requirements.
-- **Product Gate** — checks whether a selected product satisfies the requested constraints using visible product evidence.
+用户指令 → 共享约束提取与验证（Gate 开启时）→ ReAct 生成动作 → Query Gate 检查并修复搜索 → WebShop 交互 → 累积当前商品的可见证据 → Product Gate → 最终购买检查。
 
-The gates do not replace the original LLM policy. Instead, they provide structured constraint-aware feedback at different stages of the shopping process.
+- Baseline 不提取结构化约束，也不启用约束购买门控。
+- Query-Gated 只检查搜索；Product-Gated 只检查商品；Full 同时检查两者。
+- 任务标注、目标 ASIN 和评分属性只用于环境与离线评测，不进入模型提示词。
+- 每个任务重置记忆与约束缓存，所有配置保留相同的任务内候选比较能力。
+- 开启 Product Gate 时，只有当前商品 READY 才能购买。类别、属性、价格和选项都要检查；硬约束冲突不能被最终语义审计覆盖。
+- 缺少约束证据继续检查，证据已用尽则离开。提取/验证失败会报告错误并停止，不静默关闭 Gate。
+- 统一用终止任务且 reward > 0.999999 表示满分成功；满分 reward 不等于必须购买某个唯一 ASIN。
 
----
+## Gates 部分
 
-## Architecture
+- [gates/constraint_manager.py](gates/constraint_manager.py)：自然语言约束提取、验证、规范化、别名匹配、语义回退、任务内缓存。两个 Gate 共用一个实例。
+- [gates/query_gate.py](gates/query_gate.py)：搜索词中的类别、属性、品牌、选项和价格条件检查；返回 PASS、REVISE 或 UNAVAILABLE。
+- [gates/product_gate.py](gates/product_gate.py)：当前候选的完整证据检查、规则与语义判断、最终审计；返回 READY、INSPECT、REJECT、EXHAUSTED 或 UNAVAILABLE。
+- [gates/hard_constraints.py](gates/hard_constraints.py)：Decimal 价格边界（严格/包含上限、下限、区间）及选项值精确匹配；规则结果不由 LLM 改写。
 
-The main idea is to separate **general action generation** from **explicit constraint checking**.
+## Agent 部分
 
-A normal LLM shopping agent has to remember all user requirements while simultaneously searching, navigating product pages, inspecting attributes, and deciding when to buy. During a long trajectory, some requirements may be forgotten or ignored.
+- [agent/react_agent.py](agent/react_agent.py)：统一 ReAct 动作/搜索生成、Gate 反馈、搜索修复、动作重试、购买前检查及轨迹记录。
+- [agent/episode_memory.py](agent/episode_memory.py)：候选、页面证据、已检查页面、当前选项及近期推理；处理搜索、返回和候选切换。
+- [agent/baseline_agent.py](agent/baseline_agent.py)：两个 Gate 都关闭的正式 baseline。
+- [agent/gated_agent.py](agent/gated_agent.py)：用两个开关组合 Query、Product、Full，继承同一 ReAct 实现。
+- [agent/llm_client.py](agent/llm_client.py)：共享可注入客户端、统一模型、超时、所有调用/错误与 token 计数；SDK 隐式重试关闭。
+- agent/No-memory ReAct.py：旧文件名的兼容入口，现指向统一 baseline；历史 main 成绩必须单独处理。
 
-Our architecture therefore extracts the user's requirements once and maintains them as a shared structured representation.
+## 离线验证与演示
 
-The system contains four main components:
+核心回归与合成演示仅依赖 Python 标准库，从仓库根目录运行：
 
-- **Base Agent** — generates WebShop actions such as search, click, inspect, go back, and buy.
-- **ConstraintManager** — extracts, validates, normalizes, and matches user constraints.
-- **Query Gate** — checks constraints during the retrieval stage.
-- **Product Gate** — checks constraints during the candidate-verification stage.
+~~~bash
+python -m unittest discover -s tests -p test_cz_v1.py -v
+python -m demo.run_demo --output-dir results/demo-cz-v1
+~~~
 
-Both gates share the same `ConstraintManager`, ensuring that search-time and product-time reasoning use the same interpretation of the user's request.
+打开生成的 results/demo-cz-v1/report.html，可筛选四组配置并展开步骤查看提议、执行、拦截与 Gate 证据。演示使用固定合成商品、脚本化模型和独立编写的预期标签，页面明确标记为合成演示。它验证执行链路，不能证明真实模型性能。
 
-```text
-                         User Instruction
-                                |
-                                v
-                    +-----------------------+
-                    |   ConstraintManager   |
-                    |-----------------------|
-                    | extract constraints   |
-                    | validate extraction   |
-                    | normalize / aliases   |
-                    | semantic fallback     |
-                    | cache shared schema   |
-                    +-----------+-----------+
-                                |
-                                v
-                    Shared Constraint Schema
-                                |
-              +-----------------+-----------------+
-              |                                   |
-              v                                   v
-      +------------------+                +------------------+
-      |    Query Gate    |                |   Product Gate   |
-      | Retrieval Stage  |                | Candidate Stage  |
-      +------------------+                +------------------+
-              ^                                   ^
-              |                                   |
-       proposed query                     accumulated evidence
-              |                                   |
-              +---------------+   +---------------+
-                              |   |
-                              v   v
-                       +----------------+
-                       |   Base Agent   |
-                       |----------------|
-                       | observation    |
-                       | action history |
-                       | gate feedback  |
-                       +--------+-------+
-                                |
-                                v
-                         Proposed Action
-                                |
-               +----------------+----------------+
-               |                                 |
-               v                                 v
-         search[query]                    click / inspect
-               |                                 |
-               v                                 v
-          Query Gate                           WebShop
-               |                                 |
-        +------+-------+                         v
-        |              |                Visible Product Evidence
-        v              v                         |
-      PASS           REVISE                      v
-        |              |               Candidate Evidence Memory
-        |              |                         |
-        |       constraint feedback              v
-        |              |                  Product Gate
-        |              |                         |
-        |              |          +--------------+--------------+
-        |              |          |              |              |
-        |              |          v              v              v
-        |              |        READY          INSPECT        REJECT
-        |              |          |              |              |
-        +--------------+----------+------+-------+--------------+
-                                          |
-                                          v
-                                 Structured Feedback
-                                          |
-                                          v
-                                     Base Agent
-                                          |
-                                          v
-                                 Next WebShop Action
-```
+## 真实 WebShop 实验
 
-The gates act as **reasoning checkpoints**, rather than independent agents.
+保留上游 WebShop 依赖版本。建议在独立的、可安装这些旧版本的 Python/Java 环境中准备依赖与数据。setup.sh 使用 Bash、conda、OpenJDK 11 和 gdown；Windows 可在 WSL 中运行上游安装流程。
 
-Conceptually:
-
-```text
-Base Agent:
-"What action should I take next?"
-
-Query Gate:
-"Does this search query still represent the user's requirements?"
-
-Product Gate:
-"Does the visible evidence support this product as a valid candidate?"
-```
-
-The gates operate only on information available to the agent during normal interaction:
-
-- user instruction
-- visible WebShop observations
-- available actions
-- action history
-- visible product evidence
-
-They do not use evaluation-only information such as the target ASIN, hidden task attributes, or reward.
-
----
-
-## ConstraintManager
-
-Main implementation:
-
-```text
-gates/constraint_manager.py
-```
-
-The `ConstraintManager` converts a natural-language shopping instruction into a structured constraint schema shared by both gates.
-
-A simplified example:
-
-```json
-{
-  "product_type": {
-    "source_text": "tongue cleaners",
-    "canonical": "tongue cleaner",
-    "aliases": ["tongue scraper"]
-  },
-  "required_constraints": [
-    {
-      "source_text": "bpa free",
-      "canonical": "bpa free",
-      "aliases": ["BPA-free"]
-    }
-  ],
-  "post_selection_constraints": [],
-  "price_constraint": null
-}
-```
-
-The manager performs:
-
-- constraint extraction
-- extraction validation
-- canonicalization
-- alias / synonym construction
-- deterministic matching
-- semantic fallback for unresolved cases
-
-Constraint matching follows a progressively more flexible strategy:
-
-```text
-Exact Match
-     |
-     v
-Alias / Synonym Match
-     |
-     v
-Token Coverage
-     |
-     v
-Semantic Fallback
-```
-
-The schema is extracted once per task and cached. Query Gate and Product Gate therefore reuse the same validated interpretation instead of independently extracting constraints.
-
----
-
-## Query Gate
-
-Main implementation:
-
-```text
-gates/query_gate.py
-```
-
-The Query Gate operates during the **retrieval stage**.
-
-Its purpose is to prevent important requirements from disappearing when the Base Agent converts a detailed user instruction into a shorter search query.
-
-For example:
-
-```text
-User Instruction:
-Find a BPA-free tongue cleaner that is easy to clean
-
-Generated Query:
-tongue cleaner
-```
-
-The product type is preserved, but some useful constraints have been lost.
-
-The Query Gate compares the proposed query against the shared constraint schema.
-
-```text
-                    Base Agent
-                        |
-                        v
-                proposed search query
-                        |
-                        v
-                 +--------------+
-                 |  Query Gate  |
-                 +--------------+
-                        |
-             +----------+----------+
-             |                     |
-             v                     v
-      Check Product Type    Check Constraints
-             |                     |
-             +----------+----------+
-                        |
-                        v
-             Are important requirements
-               sufficiently preserved?
-                        |
-                  +-----+-----+
-                  |           |
-                 YES          NO
-                  |           |
-                  v           v
-                PASS        REVISE
-                  |           |
-                  |           v
-                  |    identify missing or
-                  |    inconsistent constraints
-                  |           |
-                  |           v
-                  |    structured feedback
-                  |           |
-                  |           v
-                  |       Base Agent
-                  |           |
-                  |           v
-                  |      revised query
-                  |           |
-                  +-----+-----+
-                        |
-                        v
-                  Execute Search
-```
-
-The main decisions are:
-
-### PASS
-
-The proposed query sufficiently represents the important retrieval constraints.
-
-Example:
-
-```text
-Instruction:
-BPA-free tongue cleaner
-
-Query:
-BPA free tongue cleaner
-
-Decision:
-PASS
-```
-
-### REVISE
-
-Important constraints are missing or inconsistent.
-
-Example:
-
-```text
-Instruction:
-BPA-free tongue cleaner
-
-Query:
-tongue cleaner
-
-Decision:
-REVISE
-
-Missing:
-BPA free
-```
-
-The Query Gate does not directly replace the search action.
-
-Instead, it provides structured feedback to the Base Agent, which can generate a revised query:
-
-```text
-search[BPA free tongue cleaner]
-```
-
-The revised query can then be validated again before execution.
-
-The Query Gate therefore focuses specifically on:
-
-```text
-detecting information loss
-        |
-        v
-providing constraint feedback
-        |
-        v
-improving query formulation
-```
-
-It does not determine whether a retrieved product is actually correct. That responsibility belongs to the Product Gate.
-
----
-
-## Product Gate
-
-Main implementation:
-
-```text
-gates/product_gate.py
-```
-
-The Product Gate operates during the **candidate-verification stage**, after the agent has opened a product.
-
-Its purpose is to determine whether the current candidate has enough visible evidence to satisfy the user's requirements.
-
-Product information in WebShop may be distributed across several pages:
-
-```text
-Product Page
-     |
-     +----> Features
-     |
-     +----> Description
-     |
-     +----> Reviews
-     |
-     +----> Options
-```
-
-For this reason, the agent maintains an evidence memory for the currently active candidate.
-
-Evidence from different visible pages is accumulated instead of evaluating every page independently.
-
-```text
-                         Click Product
-                              |
-                              v
-                    Candidate Evidence Memory
-                              |
-                +-------------+-------------+
-                |             |             |
-                v             v             v
-            Features      Description     Reviews
-                |             |             |
-                v             v             v
-           add evidence   add evidence   add evidence
-                |             |             |
-                +-------------+-------------+
-                              |
-                              v
-                     Accumulated Evidence
-                              |
-                              v
-                       +--------------+
-                       | Product Gate |
-                       +--------------+
-                              |
-                 +------------+------------+
-                 |            |            |
-                 v            v            v
-               READY        INSPECT      REJECT
-                 |            |            |
-                 |            |            |
-                 v            v            v
-             supported     need more    conflicting
-             candidate     evidence      candidate
-                 |            |            |
-                 +------------+------------+
-                              |
-                              v
-                     Structured Feedback
-                              |
-                              v
-                          Base Agent
-                              |
-               +--------------+--------------+
-               |              |              |
-               v              v              v
-              Buy        Inspect More    Leave Candidate
-```
-
-The Product Gate first evaluates whether the candidate matches the requested product type.
-
-It then evaluates the required constraints.
-
-A simplified decision process is:
-
-```text
-Check Product Type
-        |
-        +---- contradicted --------> REJECT
-        |
-        +---- uncertain -----------> INSPECT
-        |
-        +---- supported
-                 |
-                 v
-       Check Required Constraints
-                 |
-       +---------+---------+
-       |                   |
-       v                   v
- contradiction        missing evidence
-       |                   |
-       v                   v
-     REJECT              INSPECT
-
-       all supported
-            |
-            v
-          READY
-```
-
-The three main decisions are:
-
-### READY
-
-The visible evidence supports the requested product type and required constraints.
-
-Example:
-
-```text
-Instruction:
-BPA-free tongue cleaner
-
-Visible Evidence:
-tongue scraper
-BPA-free material
-
-Decision:
-READY
-```
-
-### INSPECT
-
-The candidate may be valid, but important evidence is still missing.
-
-Example:
-
-```text
-Instruction:
-BPA-free tongue cleaner
-
-Visible Evidence:
-tongue scraper
-
-BPA information:
-not visible
-
-Decision:
-INSPECT
-```
-
-This distinction is important:
-
-```text
-missing evidence != wrong product
-```
-
-A potentially valid product should not necessarily be abandoned simply because one requirement is not visible on the first page.
-
-The agent can instead inspect additional evidence such as features or descriptions.
-
-### REJECT
-
-The visible evidence conflicts with the requested product type or an important constraint.
-
-For example:
-
-```text
-Requested:
-tongue cleaner
-
-Candidate:
-lipstick
-
-Decision:
-REJECT
-```
-
-The Product Gate is advisory rather than directly controlling.
-
-It does not automatically click `Buy Now`, inspect a particular page, or leave the candidate.
-
-Instead, it provides structured feedback such as:
-
-```text
-Decision:
-INSPECT
-
-Matched:
-tongue cleaner
-
-Missing:
-BPA free
-
-Recommended:
-inspect features or description
-```
-
-The Base Agent remains responsible for selecting the actual WebShop action.
-
-The two gates therefore address different stages of the shopping process:
-
-```text
-Query Gate
-    |
-    +---- retrieval-stage checking
-    |
-    +---- "Am I searching with the right constraints?"
-
-
-Product Gate
-    |
-    +---- candidate-stage checking
-    |
-    +---- "Does this product actually satisfy the constraints?"
-```
-
-Together, the overall reasoning process becomes:
-
-```text
-User Request
-     |
-     v
-Extract and Validate Constraints
-     |
-     v
-Generate Search Query
-     |
-     v
-Query Gate
-     |
-     v
-Retrieve Candidate
-     |
-     v
-Collect Product Evidence
-     |
-     v
-Product Gate
-     |
-     v
-Base Agent Chooses Next Action
-```
-
----
-
-## Agent
-
-Main implementation:
-
-```text
-agent/gated_agent.py
-```
-
-The agent supports four experimental configurations:
-
-| Configuration | Query Gate | Product Gate |
-|---|---|---|
-| No Gate | OFF | OFF |
-| Query Gate Only | ON | OFF |
-| Product Gate Only | OFF | ON |
-| Query + Product Gate | ON | ON |
-
-When both gates are enabled, they share a single `ConstraintManager`.
-
-This provides a simple 2 × 2 ablation design for measuring the contribution of each gate.
-
----
-
-## Evaluation
-
-Main evaluation entry:
-
-```text
-evaluation/run_gates_31.py
-```
-
-The current development evaluation uses:
-
-- 31 instruction-bearing shopping tasks
-- a WebShop search environment containing 1000 indexed products
-- a main interaction budget of 20 steps
-
-Example:
-
-```bash
-python -u evaluation/run_gates_31.py \
-    --query-gate on \
-    --product-gate on \
-    --num-products 1000 \
-    --max-steps 20 \
-    --dataset evaluation/webshop_test_100.json \
-    --output-dir results/both_gates
-```
-
-Product Gate only:
-
-```bash
-python -u evaluation/run_gates_31.py \
-    --query-gate off \
-    --product-gate on \
-    --num-products 1000 \
-    --max-steps 20 \
-    --dataset evaluation/webshop_test_100.json \
-    --output-dir results/product_gate
-```
-
----
-
-## Preliminary Results
-
-Current 20-step development results:
-
-| Configuration | Full Success | Partial | Zero | Average Reward |
-|---|---:|---:|---:|---:|
-| No Gate | 8 / 31 | 3 | 20 | 0.304 |
-| Query Gate Only | 6 / 31 | 2 | 23 | 0.205 |
-| Product Gate Only | 17 / 31 | 2 | 12 | 0.575 |
-| Query + Product Gate | 18 / 31 | 2 | 11 | 0.608 |
-
-These results are preliminary and should not be interpreted as final benchmark estimates.
-
-The Product Gate currently shows the clearest observed improvement. Query Gate results are more variable, so repeated runs and larger-scale evaluation are planned before drawing conclusions about its standalone or interaction effect.
-
----
-
-## Project Structure
-
-```text
-Constraint-Aware-Shopping-Agent/
-│
-├── agent/
-│   ├── base_agent.py
-│   ├── baseline_agent.py
-│   └── gated_agent.py
-│
-├── gates/
-│   ├── __init__.py
-│   ├── constraint_manager.py
-│   ├── query_gate.py
-│   └── product_gate.py
-│
-├── evaluation/
-│   ├── run_gates_31.py
-│   └── summarize_product_gate_31.py
-│
-├── webshop_wrapper/
-├── web_agent_site/
-├── search_engine/
-│
-├── requirements.txt
-├── setup.sh
-├── THIRD_PARTY_LICENSE_WebShop.md
-└── README.md
-```
-
----
-
-## Setup
-
-Install the project dependencies:
-
-```bash
+~~~bash
 pip install -r requirements.txt
-```
+bash setup.sh -d small
+~~~
 
-The current implementation uses DeepSeek as the action-generating language model.
+设置环境变量（不会自动读取 .env）：
 
-Set the API key through an environment variable:
+~~~powershell
+$env:DEEPSEEK_API_KEY = 'your_key'
+$env:SHOPPING_MODEL = 'deepseek-chat'
+~~~
 
-```bash
-export DEEPSEEK_API_KEY="YOUR_KEY"
-```
+预检及统一实验：
 
-Do not commit API keys to the repository.
+~~~bash
+python -m evaluation.preflight
+python -m evaluation.run_experiment --configs baseline query product full --dataset evaluation/webshop_test_100.json --model deepseek-chat --max-steps 20 --num-products 1000 --repeats 3 --seed 42 --output-dir results/cz-v1-live
+~~~
 
----
+evaluation/webshop_test_100.json 有 100 个商品记录，其中 31 个有 instruction。evaluation/tasks.json 是其中 5 个真实任务的样例，不再使用与 WebShop ASIN 不匹配的占位任务。完整参数、独立标注与指标定义见 [evaluation/README.md](evaluation/README.md)。
 
-## Upstream Project
+每组生成 results.jsonl 和 summary.json；根目录生成 comparison.json、report.html、manifest.json 与代码快照。相同参数可加 --resume；任务、模型、预算、代码或标注变化时拒绝混用已有结果。LLM 即使 temperature=0 仍可能产生变化，应报告重复实验结果。
 
-This project is built on top of the WebShop environment developed by Princeton NLP.
+## Proposal 对应关系
 
-Original repository:
+详细的需求与实现清单见 [docs/PROPOSAL_ALIGNMENT.md](docs/PROPOSAL_ALIGNMENT.md)。分支来源、修复与验证记录见 [docs/MERGE_NOTES.md](docs/MERGE_NOTES.md)。
 
-https://github.com/princeton-nlp/WebShop
+Query Coverage、Product Satisfaction 与误接受/误拒绝使用独立标注，不使用 Gate 自己的判断作为答案。无标注或相应分母为零时返回 null，并同时报告标注覆盖率。真实任务的人工标注与实验分析属于仍需执行的研究步骤。
 
-The original WebShop license is preserved in:
+## 上游许可
 
-```text
-THIRD_PARTY_LICENSE_WebShop.md
-```
-
----
-
-## Status
-
-Current work focuses on:
-
-- repeated ablation runs
-- evaluating variance across LLM runs
-- longer interaction-budget sensitivity experiments
-- larger evaluation sets
-
-The current 31-task results are treated as development and diagnostic experiments rather than a final large-scale benchmark.
+项目基于 Princeton WebShop。上游许可保存在 THIRD_PARTY_LICENSE_WebShop.md。保留 tests/web-agent-site、tests/transfer 及相应 transfer 辅助模块用于上游回归；这些需要完整环境依赖，与当前离线核心测试分开运行。

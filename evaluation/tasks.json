@@ -1,22 +1,77 @@
 [
-    {
-        "task_id": "webshop_001",
-        "instruction": "i'm looking for a 3 sided toothbrush for fresh breath"
-    },
-    {
-        "task_id": "webshop_002",
-        "instruction": "i need a men's blue t-shirt that is compatible with the machine washer."
-    },
-    {
-        "task_id": "webshop_003",
-        "instruction": "i need footprints in the sand necklace  and earrings sized long lasting candle 21oz"
-    },
-    {
-        "task_id": "webshop_004",
-        "instruction": "i am looking for a cupcake topper for a birthday party. also choose black color"
-    },
-    {
-        "task_id": "webshop_005",
-        "instruction": "i am looking for caffeine free and gluten free chocolate. please choose peanut butter flavor."
-    }
+  {
+    "attributes": [
+      "tea tree",
+      "essential oils",
+      "natural ingredients"
+    ],
+    "instruction": "Find me scrubs & body treatments with tea tree, natural ingredients",
+    "instruction_attributes": [
+      "tea tree",
+      "natural ingredients"
+    ],
+    "task_id": "B07DJJXGB5"
+  },
+  {
+    "attributes": [
+      "rose gold",
+      "lip balm",
+      "skin care",
+      "easy carry",
+      "high quality"
+    ],
+    "instruction": "Find me easy carry, high quality refillable containers with rose gold",
+    "instruction_attributes": [
+      "easy carry",
+      "high quality",
+      "rose gold"
+    ],
+    "task_id": "B08X2PKKB2"
+  },
+  {
+    "attributes": [
+      "eco friendly",
+      "oral care",
+      "sensitive skin"
+    ],
+    "instruction": "Find me eco friendly cotton balls & swabs for sensitive skin",
+    "instruction_attributes": [
+      "eco friendly",
+      "sensitive skin"
+    ],
+    "task_id": "B07QXZL1K5"
+  },
+  {
+    "attributes": [
+      "travel bottles",
+      "face wash",
+      "leak proof",
+      "bpa free",
+      "easy clean"
+    ],
+    "instruction": "Find me leak proof, bpa free, easy clean refillable containers with travel bottles",
+    "instruction_attributes": [
+      "leak proof",
+      "bpa free",
+      "easy clean",
+      "travel bottles"
+    ],
+    "task_id": "B08J3WFRBT"
+  },
+  {
+    "attributes": [
+      "oil free",
+      "clinically proven",
+      "paraben free",
+      "dead skin"
+    ],
+    "instruction": "Find me oil free, clinically proven, paraben free scrubs & body treatments for dead skin",
+    "instruction_attributes": [
+      "oil free",
+      "clinically proven",
+      "paraben free",
+      "dead skin"
+    ],
+    "task_id": "B08D4MH7XQ"
+  }
 ]

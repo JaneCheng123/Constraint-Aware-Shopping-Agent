@@ -1,0 +1,23 @@
+[
+  {
+    "task_id": "DEMO_TONGUE",
+    "instruction": "Find a BPA-free tongue cleaner in blue under $10.",
+    "instruction_attributes": [
+      "bpa free"
+    ],
+    "instruction_options": {
+      "color": "blue"
+    }
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "instruction": "Find a green women's jumpsuit from Acme in size M at most $50.",
+    "instruction_attributes": [
+      "Acme"
+    ],
+    "instruction_options": {
+      "color": "green",
+      "size": "M"
+    }
+  }
+]

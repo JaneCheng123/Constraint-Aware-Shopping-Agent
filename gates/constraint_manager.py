@@ -1,8 +1,9 @@
 import json
-import os
+import copy
 import re
 
-import openai
+from agent.llm_client import LLMClient
+from gates.hard_constraints import parse_price_constraint
 
 
 class ConstraintManager:
@@ -18,17 +19,9 @@ class ConstraintManager:
         "CONTRADICTED",
     }
 
-    def __init__(self, model="deepseek-chat"):
-        self.model = model
-
-        api_key = os.environ.get("DEEPSEEK_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "DEEPSEEK_API_KEY is not set."
-            )
-
-        openai.api_key = api_key
-        openai.api_base = "https://api.deepseek.com"
+    def __init__(self, model=None, client=None):
+        self.client = client or LLMClient(model=model)
+        self.model = model or self.client.model
 
         self._schema_cache = {}
 
@@ -226,6 +219,8 @@ class ConstraintManager:
             "source_text": source_text,
             "canonical": canonical,
             "aliases": clean_aliases,
+            "kind": str(value.get("kind", "attribute")).lower(),
+            "value": str(value.get("value", canonical)).strip(),
         }
 
     @classmethod
@@ -405,6 +400,15 @@ class ConstraintManager:
                         "has no canonical form"
                     )
 
+        for option in schema.get("post_selection_constraints", []):
+            if option.get("kind") not in {"color", "size", "style", "scent", "pack", "count", "variant", "flavor"}:
+                issues.append("Selectable option needs an explicit option-group kind")
+            if not option.get("value"):
+                issues.append("Selectable option needs an exact value")
+        expected_price = parse_price_constraint(instruction)
+        actual_price = parse_price_constraint(schema.get("price_constraint"))
+        if expected_price != actual_price or (schema.get("price_constraint") and actual_price is None):
+            issues.append("Price bounds were omitted or changed")
         return issues
 
     def validate_extraction(
@@ -453,7 +457,7 @@ Original user instruction:
 Proposed extraction:
 {json.dumps(normalized, ensure_ascii=False)}
 
-Check the extraction carefully.
+Check the extraction carefully. valid must describe the corrected_schema you return; return boolean false if that final schema cannot be verified. Check kind and value of every selectable option, including color and size, as well as price completeness.
 
 CRITICAL RULES:
 
@@ -522,7 +526,8 @@ Return ONLY JSON:
 
             self.validation_calls += 1
 
-            response = openai.ChatCompletion.create(
+            response = self.client.create(
+                purpose="validate_extraction",
                 model=self.model,
                 messages=[
                     {
@@ -549,12 +554,7 @@ Return ONLY JSON:
                     "invalid JSON."
                 )
 
-            llm_valid = bool(
-                parsed.get(
-                    "valid",
-                    False,
-                )
-            )
+            llm_valid = parsed.get("valid") is True
 
             issues = parsed.get(
                 "issues",
@@ -602,9 +602,7 @@ Return ONLY JSON:
             # If LLM reported the original schema invalid but
             # supplied a source-anchored correction, the
             # corrected schema is allowed.
-            final_valid = (
-                len(final_issues) == 0
-            )
+            final_valid = (llm_valid and len(final_issues) == 0)
 
             return {
                 "valid": final_valid,
@@ -624,10 +622,7 @@ Return ONLY JSON:
             # If validator API fails, we can still use a schema
             # that passes source anchoring, but record warning.
             return {
-                "valid": (
-                    len(deterministic_issues)
-                    == 0
-                ),
+                "valid": False,
                 "schema": normalized,
                 "issues": (
                     deterministic_issues
@@ -659,9 +654,9 @@ Return ONLY JSON:
 
             self.schema_cache_hits += 1
 
-            return self._schema_cache[
+            return copy.deepcopy(self._schema_cache[
                 instruction
-            ]
+            ])
 
         prompt = f"""
 You are extracting shopping constraints from a user instruction.
@@ -669,7 +664,7 @@ You are extracting shopping constraints from a user instruction.
 User instruction:
 {instruction}
 
-Extract ONLY explicitly requested information.
+Extract ONLY explicitly requested information. Include every explicit price, color, size, brand and category requirement. For each selectable option include kind (color/size/style/scent/pack) and value (exact selectable value). For fixed brand constraints use kind=brand and value=brand name. price_constraint is the original price phrase, preserving decimals and strict/inclusive bounds.
 
 IMPORTANT:
 source_text MUST be copied from the original user instruction
@@ -714,14 +709,18 @@ Return ONLY JSON:
     {{
       "source_text": "exact constraint wording",
       "canonical": "same-meaning normalized form",
-      "aliases": []
+      "aliases": [],
+      "kind": "attribute",
+      "value": "explicit value"
     }}
   ],
   "post_selection_constraints": [
     {{
       "source_text": "exact option wording",
       "canonical": "same-meaning normalized form",
-      "aliases": []
+      "aliases": [],
+      "kind": "color",
+      "value": "exact selectable option value"
     }}
   ],
   "price_constraint": null
@@ -732,7 +731,8 @@ Return ONLY JSON:
 
             self.extraction_calls += 1
 
-            response = openai.ChatCompletion.create(
+            response = self.client.create(
+                purpose="extract_from_instruction",
                 model=self.model,
                 messages=[
                     {
@@ -815,7 +815,7 @@ Return ONLY JSON:
 
         self._schema_cache[
             instruction
-        ] = schema
+        ] = copy.deepcopy(schema)
 
         return schema
 
@@ -877,6 +877,7 @@ Return ONLY JSON:
 
             if (
                 phrase_norm
+                and not re.search(r"\b(?:not|no|without|never)\s+(?:\w+\s+){0,2}" + re.escape(phrase_norm) + r"\b", text_norm)
                 and (
                     f" {phrase_norm} "
                     in f" {text_norm} "
@@ -909,6 +910,7 @@ Return ONLY JSON:
 
             if (
                 alias_norm
+                and not re.search(r"\b(?:not|no|without|never)\s+(?:\w+\s+){0,2}" + re.escape(alias_norm) + r"\b", text_norm)
                 and (
                     f" {alias_norm} "
                     in f" {text_norm} "
@@ -1232,7 +1234,8 @@ Return ONLY valid JSON:
 
             self.product_type_semantic_calls += 1
 
-            response = openai.ChatCompletion.create(
+            response = self.client.create(
+                purpose="semantic_match_product_type",
                 model=self.model,
                 messages=[
                     {
@@ -1274,122 +1277,12 @@ Return ONLY valid JSON:
                 status = "MISSING"
 
 
-            # =================================================
-            # BROAD CATEGORY EARLY-VETO GUARD
-            #
-            # Category labels such as "accessories", "care",
-            # "treatments", etc. are intentionally broad in
-            # WebShop. A specific item may belong to that
-            # umbrella without literally repeating the category
-            # name.
-            #
-            # Therefore semantic CONTRADICTED is not allowed to
-            # hard-veto a broad category at the EARLY gate.
-            #
-            # We provisionally keep it alive here. Required
-            # attributes and the final Product Gate audit still
-            # have to pass before READY.
-            # =================================================
-
-            broad_category_text = " ".join(
-                [
-                    str(
-                        constraint.get(
-                            "source_text",
-                            "",
-                        )
-                    ),
-                    str(
-                        constraint.get(
-                            "canonical",
-                            "",
-                        )
-                    ),
-                ]
-            ).lower()
-
-
-            broad_category_terms = (
-                "accessories",
-                "accessory",
-                "care",
-                "treatments",
-                "treatment",
-                "supplies",
-                "supply",
-                "tools",
-                "tool",
-                "kits",
-                "kit",
-                "equipment",
-            )
-
-
-            broad_category_guard = (
-                status == "CONTRADICTED"
-                and any(
-                    term
-                    in broad_category_text
-                    for term
-                    in broad_category_terms
-                )
-            )
-
-
-            if broad_category_guard:
-
-                status = "SUPPORTED"
-
-
             result = {
-                "status": status,
-                "match_type": (
-                    "product_type_semantic"
-                ),
-                "matched_by": str(
-                    parsed.get(
-                        "evidence",
-                        "",
-                    )
-                ).strip() or None,
-                "reason": str(
-                    parsed.get(
-                        "reason",
-                        "",
-                    )
-                ).strip(),
-                "raw_output": raw_output,
-                "error": None,
+                "status": status, "match_type": "product_type_semantic",
+                "matched_by": str(parsed.get("evidence", "")).strip() or None,
+                "reason": str(parsed.get("reason", "")).strip(),
+                "raw_output": raw_output, "error": None,
             }
-
-            if broad_category_guard:
-
-                result[
-                    "match_type"
-                ] = "broad_category_guard"
-
-                result[
-                    "matched_by"
-                ] = (
-                    constraint.get(
-                        "source_text"
-                    )
-                    or constraint.get(
-                        "canonical"
-                    )
-                )
-
-                result[
-                    "reason"
-                ] = (
-                    "Requested product type is a broad "
-                    "umbrella category. Semantic mismatch "
-                    "is not allowed to hard-reject the "
-                    "candidate at the early product gate; "
-                    "required constraints and final audit "
-                    "must still pass."
-                )
-
 
             self._product_type_semantic_cache[
                 cache_key
@@ -1469,24 +1362,6 @@ Return ONLY valid JSON:
                 "matched_by": phrase,
                 "reason": (
                     "same-category product alias match"
-                ),
-                "error": None,
-            }
-
-
-        matched, phrase = self.token_match(
-            text,
-            constraint,
-        )
-
-        if matched:
-
-            return {
-                "status": "SUPPORTED",
-                "match_type": "token",
-                "matched_by": phrase,
-                "reason": (
-                    "product-type token coverage"
                 ),
                 "error": None,
             }
@@ -1578,7 +1453,8 @@ Return ONLY JSON:
 
             self.semantic_match_calls += 1
 
-            response = openai.ChatCompletion.create(
+            response = self.client.create(
+                purpose="semantic_match",
                 model=self.model,
                 messages=[
                     {
@@ -1681,20 +1557,6 @@ Return ONLY JSON:
                 "match_type": "alias",
                 "matched_by": phrase,
                 "reason": "same-meaning alias match",
-                "error": None,
-            }
-
-        matched, phrase = self.token_match(
-            text,
-            constraint,
-        )
-
-        if matched:
-            return {
-                "status": "SUPPORTED",
-                "match_type": "token",
-                "matched_by": phrase,
-                "reason": "conservative token coverage",
                 "error": None,
             }
 

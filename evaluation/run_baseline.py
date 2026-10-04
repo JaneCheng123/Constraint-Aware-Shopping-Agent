@@ -1,17 +1,9 @@
-from agent.baseline_agent import BaselineAgent
-from evaluation.task_loader import load_tasks
-from evaluation.runner import run_agent_on_tasks
+"""Compatibility baseline launcher using the common budget and runner."""
+
+import sys
+from evaluation.run_experiment import main
 
 
-tasks = load_tasks("evaluation/webshop_test_100.json")
-
-agent = BaselineAgent(
-    num_products=1000,
-    max_steps=50,
-)
-
-run_agent_on_tasks(
-    agent=agent,
-    tasks=tasks,
-    output_path="results/baseline.jsonl",
-)
+if __name__ == "__main__":
+    arguments = sys.argv[1:] or ["--output-dir", "results/baseline-cz-v1"]
+    main(["--configs", "baseline"] + arguments)

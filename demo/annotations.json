@@ -1,0 +1,405 @@
+[
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "query",
+    "query": "tongue cleaner",
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "MISSING",
+      "price": "MISSING",
+      "color: blue": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "query",
+    "query": "tongue cleaner bpa free blue under $10",
+    "acceptable": true,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: blue": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000001",
+    "selected_options": {},
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: blue": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000001",
+    "selected_options": {
+      "color": "blue"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: blue": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000001",
+    "selected_options": {
+      "color": "red"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: blue": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000002",
+    "selected_options": {},
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: blue": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000002",
+    "selected_options": {
+      "color": "blue"
+    },
+    "acceptable": true,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: blue": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_TONGUE",
+    "kind": "product",
+    "product_id": "B000000002",
+    "selected_options": {
+      "color": "red"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "bpa free": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: blue": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "query",
+    "query": "women's jumpsuit",
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "MISSING",
+      "price": "MISSING",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "query",
+    "query": "women's jumpsuit Acme green M at most $50",
+    "acceptable": true,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "SUPPORTED",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {},
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {
+      "size": "M"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {
+      "size": "L"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {
+      "color": "red"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {
+      "color": "red",
+      "size": "M"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000003",
+    "selected_options": {
+      "color": "red",
+      "size": "L"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "CONTRADICTED",
+      "price": "CONTRADICTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {},
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "size": "M"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "size": "L"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "green"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "SUPPORTED",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "green",
+      "size": "M"
+    },
+    "acceptable": true,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "SUPPORTED",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "green",
+      "size": "L"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "SUPPORTED",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "red"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "red",
+      "size": "M"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "SUPPORTED"
+    },
+    "reviewer": "synthetic fixture author"
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "kind": "product",
+    "product_id": "B000000004",
+    "selected_options": {
+      "color": "red",
+      "size": "L"
+    },
+    "acceptable": false,
+    "constraint_statuses": {
+      "product_type": "SUPPORTED",
+      "Acme": "SUPPORTED",
+      "price": "SUPPORTED",
+      "color: green": "MISSING",
+      "size: M": "MISSING"
+    },
+    "reviewer": "synthetic fixture author"
+  }
+]

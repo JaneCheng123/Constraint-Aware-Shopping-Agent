@@ -40,7 +40,7 @@
                   {% set current_options = options.copy() %}
                   {% set _ = current_options.update({option_name: option_content}) %}
                   {% set url = url_for('item_page', session_id=session_id, asin=asin, keywords=keywords, page=page, options=current_options) %}
-                  <input type="radio" id="radio_{{ option_name }}{{ loop.index0 }}" name="{{ option_name }}" value="{{ option_content }}" data-url="{{ url }}">
+                  <input type="radio" id="radio_{{ option_name }}{{ loop.index0 }}" name="{{ option_name }}" value="{{ option_content }}" data-url="{{ url }}" {% if options.get(option_name) == option_content %}checked{% endif %}>
                   <label for="radio_{{ option_name }}{{ loop.index0 }}">{{ option_content }}</label>
                 {% endfor %}
               </div>

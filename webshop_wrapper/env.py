@@ -10,12 +10,12 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from web_agent_site.envs import WebAgentTextEnv
+from gates.hard_constraints import parse_price_constraint
 
 
 class WebShopWrapper:
 
-    def __init__(self, num_products=1000, **kwargs):
+    def __init__(self, num_products=1000, env_factory=None, **kwargs):
         self.env_kwargs = {
             "observation_mode": "text",
             "num_products": num_products,
@@ -24,6 +24,7 @@ class WebShopWrapper:
         self.env_kwargs.update(kwargs)
 
         self.env = None
+        self.env_factory = env_factory
 
 
     @staticmethod
@@ -368,9 +369,11 @@ class WebShopWrapper:
         # 1. 创建 WebShop environment
         # ==========================================
 
-        self.env = WebAgentTextEnv(
-            **self.env_kwargs
-        )
+        factory = self.env_factory
+        if factory is None:
+            from web_agent_site.envs import WebAgentTextEnv
+            factory = WebAgentTextEnv
+        self.env = factory(**self.env_kwargs)
 
 
         # ==========================================
@@ -424,35 +427,11 @@ class WebShopWrapper:
         # Attributes
         # ==========================================
 
-        if (
-            task.get(
-                "instruction_attributes"
-            )
-            is not None
-        ):
-
-            goal["attributes"] = (
-                copy.deepcopy(
-                    task.get(
-                        "instruction_attributes"
-                    )
-                    or []
-                )
-            )
-
-        elif (
-            task.get("attributes")
-            is not None
-        ):
-
-            goal["attributes"] = (
-                copy.deepcopy(
-                    task.get(
-                        "attributes"
-                    )
-                    or []
-                )
-            )
+        # Never silently inherit additional hidden attributes from a random base
+        # goal. The runner passes the same complete task to every configuration.
+        goal["attributes"] = copy.deepcopy(
+            task.get("instruction_attributes", task.get("attributes", [])) or []
+        )
 
 
         # ==========================================
@@ -492,6 +471,11 @@ class WebShopWrapper:
                     instruction
                 )
             )
+
+        goal["price_bounds"] = parse_price_constraint(instruction)
+        if task.get("price_upper") is not None and goal["price_bounds"] is None:
+            goal["price_bounds"] = {"min": None, "max": str(task["price_upper"]),
+                                    "min_inclusive": True, "max_inclusive": True}
 
 
         # ==========================================
@@ -695,11 +679,21 @@ class WebShopWrapper:
 
 
     def get_available_actions(self):
-
-        return (
-            self.env
-            .get_available_actions()
-        )
+        actions = dict(self.env.get_available_actions())
+        html = self.env._parse_html()
+        actions["product_ids"] = [item.get_text().strip() for item in html.find_all(class_="product-link")]
+        groups, selected = {}, {}
+        for option in html.select('input[type="radio"]'):
+            group, value = option.get("name"), option.get("value")
+            if group and value is not None:
+                groups.setdefault(group, []).append(value)
+                if option.has_attr("checked"):
+                    selected[group] = value
+        actions["option_groups"], actions["selected_options"] = groups, selected
+        clicks = {str(x).casefold() for x in actions.get("clickables", [])}
+        actions["page_type"] = ("product" if "buy now" in clicks else "results" if actions["product_ids"]
+                                else "search" if actions.get("has_search_bar") else "detail")
+        return actions
 
 
     def get_instruction(self):

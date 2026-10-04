@@ -1,0 +1,2 @@
+# Lightweight client dependencies. The offline demo and regression suite use only stdlib.
+openai>=1.30,<3

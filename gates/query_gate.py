@@ -1,454 +1,81 @@
+"""Check and repair every explicit query constraint before executing search."""
+
 import re
 
 from gates.constraint_manager import ConstraintManager
+from gates.hard_constraints import parse_price_constraint
 
 
 class QueryGate:
+    def __init__(self, model=None, constraint_manager=None):
+        self.constraint_manager = constraint_manager or ConstraintManager(model=model)
 
-    def __init__(
-        self,
-        model="deepseek-chat",
-        constraint_manager=None,
-    ):
-
-        self.model = model
-
-        self.constraint_manager = (
-            constraint_manager
-            if constraint_manager is not None
-            else ConstraintManager(
-                model=model
-            )
-        )
-
-    # Compatibility with existing gated_agent.py
     @property
     def extraction_calls(self):
-        return (
-            self.constraint_manager
-            .extraction_calls
-        )
+        return self.constraint_manager.extraction_calls
 
     @property
     def extraction_cache_hits(self):
-        return (
-            self.constraint_manager
-            .schema_cache_hits
-        )
+        return self.constraint_manager.schema_cache_hits
 
     @staticmethod
     def _clean_query(query):
-
-        if query is None:
-            return ""
-
-        query = str(query).strip()
-
-        match = re.fullmatch(
-            r"search\[(.*?)\]",
-            query,
-            flags=(
-                re.IGNORECASE
-                | re.DOTALL
-            ),
-        )
-
-        if match:
-            query = match.group(1)
-
-        return re.sub(
-            r"\s+",
-            " ",
-            query,
-        ).strip()
-
-    def get_constraints(
-        self,
-        instruction,
-    ):
-
-        return (
-            self.constraint_manager
-            .get_constraints(
-                instruction
-            )
-        )
-
-    @staticmethod
-    def _preferred_text(
-        constraint,
-    ):
-
-        return str(
-            constraint.get(
-                "canonical",
-                constraint.get(
-                    "source_text",
-                    "",
-                ),
-            )
-        ).strip()
-
-    def validate_query(
-        self,
-        instruction,
-        proposed_query,
-    ):
-
-        proposed_query = (
-            self._clean_query(
-                proposed_query
-            )
-        )
-
-        schema = self.get_constraints(
-            instruction
-        )
-
-        if schema.get(
-            "extraction_error"
-        ):
-
-            return {
-                "decision": "PASS",
-                "reason": (
-                    "Constraint extraction is unavailable; "
-                    "falling back to the baseline query."
-                ),
-                "original_query": proposed_query,
-                "revised_query": None,
-                "product_type": schema.get(
-                    "product_type"
-                ),
-                "required_constraints": schema.get(
-                    "required_constraints",
-                    [],
-                ),
-                "post_selection_constraints": schema.get(
-                    "post_selection_constraints",
-                    [],
-                ),
-                "price_constraint": schema.get(
-                    "price_constraint"
-                ),
-                "product_type_covered": None,
-                "constraint_coverage": [],
-                "missing_constraints": [],
-                "contradicted_constraints": [],
-                "gate_error": schema.get(
-                    "extraction_error"
-                ),
-                "validator": (
-                    "constraint_manager_cascade"
-                ),
-            }
-
-        product_type = schema.get(
-            "product_type",
-            {},
-        )
-
-        required = schema.get(
-            "required_constraints",
-            [],
-        )
-
-        product_result = (
-            self.constraint_manager
-            .match_constraint(
-                text=proposed_query,
-                constraint=product_type,
-                use_semantic=True,
-                context="search query product type",
-            )
-        )
-
-        coverage = []
-
-        missing = []
-        contradicted = []
-
-        for constraint in required:
-
-            result = (
-                self.constraint_manager
-                .match_constraint(
-                    text=proposed_query,
-                    constraint=constraint,
-                    use_semantic=True,
-                    context="search query constraint",
-                )
-            )
-
-            canonical = (
-                self._preferred_text(
-                    constraint
-                )
-            )
-
-            coverage.append({
-                "constraint": canonical,
-                "source_text": constraint.get(
-                    "source_text"
-                ),
-                "status": result[
-                    "status"
-                ],
-                "match_type": result[
-                    "match_type"
-                ],
-                "matched_by": result[
-                    "matched_by"
-                ],
-                "reason": result[
-                    "reason"
-                ],
-            })
-
-            if result["status"] == "MISSING":
-                missing.append(canonical)
-
-            elif (
-                result["status"]
-                == "CONTRADICTED"
-            ):
-                contradicted.append(canonical)
-
-        product_missing = (
-            product_result["status"]
-            == "MISSING"
-        )
-
-        product_contradicted = (
-            product_result["status"]
-            == "CONTRADICTED"
-        )
-
-        if (
-            not product_missing
-            and not product_contradicted
-            and not missing
-            and not contradicted
-        ):
-
-            return {
-                "decision": "PASS",
-                "reason": (
-                    "Product type and all explicit "
-                    "retrieval constraints are covered."
-                ),
-                "original_query": proposed_query,
-                "revised_query": None,
-                "product_type": product_type,
-                "required_constraints": required,
-                "post_selection_constraints": schema.get(
-                    "post_selection_constraints",
-                    [],
-                ),
-                "price_constraint": schema.get(
-                    "price_constraint"
-                ),
-                "product_type_covered": True,
-                "product_type_match": product_result,
-                "constraint_coverage": coverage,
-                "missing_constraints": [],
-                "contradicted_constraints": [],
-                "gate_error": False,
-                "validator": (
-                    "constraint_manager_cascade"
-                ),
-            }
-
-        # -----------------------------------------------------
-        # REVISE
-        #
-        # Missing constraints:
-        # preserve original query and append them.
-        #
-        # Contradiction:
-        # rebuild a clean query from validated schema.
-        # -----------------------------------------------------
-
-        if (
-            product_contradicted
-            or contradicted
-        ):
-
-            parts = []
-
-            product_text = (
-                self._preferred_text(
-                    product_type
-                )
-            )
-
-            if product_text:
-                parts.append(
-                    product_text
-                )
-
-            for constraint in required:
-
-                text = self._preferred_text(
-                    constraint
-                )
-
-                if text:
-                    parts.append(text)
-
-        else:
-
-            parts = [
-                proposed_query
-            ]
-
-            if product_missing:
-
-                product_text = (
-                    self._preferred_text(
-                        product_type
-                    )
-                )
-
-                if product_text:
-                    parts.append(
-                        product_text
-                    )
-
-            parts.extend(
-                missing
-            )
-
-        revised_query = re.sub(
-            r"\s+",
-            " ",
-            " ".join(parts),
-        ).strip()
-
-        reasons = []
-
-        if product_missing:
-            reasons.append(
-                "missing product type"
-            )
-
-        if product_contradicted:
-            reasons.append(
-                "product type semantic conflict"
-            )
-
-        if missing:
-            reasons.append(
-                "missing constraints: "
-                + ", ".join(missing)
-            )
-
-        if contradicted:
-            reasons.append(
-                "contradicted constraints: "
-                + ", ".join(
-                    contradicted
-                )
-            )
-
-        return {
-            "decision": "REVISE",
-            "reason": "; ".join(
-                reasons
-            ),
-            "original_query": proposed_query,
-            "revised_query": revised_query,
-            "product_type": product_type,
-            "required_constraints": required,
-            "post_selection_constraints": schema.get(
-                "post_selection_constraints",
-                [],
-            ),
-            "price_constraint": schema.get(
-                "price_constraint"
-            ),
-            "product_type_covered": (
-                not product_missing
-                and not product_contradicted
-            ),
-            "product_type_match": (
-                product_result
-            ),
-            "constraint_coverage": coverage,
-            "missing_constraints": missing,
-            "contradicted_constraints": (
-                contradicted
-            ),
-            "gate_error": False,
-            "validator": (
-                "constraint_manager_cascade"
-            ),
-        }
-
-    def evaluate(
-        self,
-        instruction,
-        proposed_query,
-        history,
-    ):
-
-        result = self.validate_query(
-            instruction=instruction,
-            proposed_query=proposed_query,
-        )
-
-        previous_queries = []
-
-        if isinstance(history, list):
-
-            for item in history:
-
-                if not isinstance(
-                    item,
-                    dict,
-                ):
-                    continue
-
-                action = str(
-                    item.get(
-                        "action",
-                        "",
-                    )
-                ).strip()
-
-                match = re.fullmatch(
-                    r"search\[(.*?)\]",
-                    action,
-                    flags=(
-                        re.IGNORECASE
-                        | re.DOTALL
-                    ),
-                )
-
-                if match:
-
-                    previous_queries.append(
-                        self._clean_query(
-                            match.group(1)
-                        )
-                    )
-
-        proposed_norm = (
-            ConstraintManager.normalize_text(
-                proposed_query
-            )
-        )
-
-        previous_norm = {
-            ConstraintManager.normalize_text(q)
-            for q in previous_queries
-        }
-
-        result["repeated_query"] = (
-            proposed_norm
-            in previous_norm
-        )
-
-        # Repetition is diagnostic only.
-        # It never changes REVISE into PASS.
+        query = str(query or "").strip()
+        match = re.fullmatch(r"search\[(.*?)\]", query, re.I | re.S)
+        return " ".join((match.group(1) if match else query).split())
+
+    def get_constraints(self, instruction):
+        return self.constraint_manager.get_constraints(instruction)
+
+    def validate_query(self, instruction, proposed_query):
+        query = self._clean_query(proposed_query)
+        schema = self.get_constraints(instruction)
+        result = {"original_query": query, "revised_query": None, "constraint_coverage": [],
+                  "missing_constraints": [], "contradicted_constraints": [], "gate_error": None}
+        if schema.get("extraction_error"):
+            return dict(result, decision="UNAVAILABLE", reason="No validated constraint schema",
+                        gate_error=schema["extraction_error"])
+        checks = [("product_type", schema["product_type"])]
+        checks += [("required", item) for item in schema["required_constraints"]]
+        checks += [("post_selection", item) for item in schema["post_selection_constraints"]]
+        for group, constraint in checks:
+            matcher = self.constraint_manager.match_product_type if group == "product_type" else self.constraint_manager.match_constraint
+            # A selectable requirement can use the exact option value in a query.
+            if group == "post_selection":
+                constraint = dict(constraint, aliases=list(dict.fromkeys(
+                    constraint.get("aliases", []) + [constraint.get("value", constraint["canonical"])])))
+            checked = matcher(query, constraint, context="search query " + group)
+            label = constraint["canonical"]
+            result["constraint_coverage"].append(dict(checked, constraint=label, group=group))
+            if checked["status"] != "SUPPORTED":
+                key = "contradicted_constraints" if checked["status"] == "CONTRADICTED" else "missing_constraints"
+                result[key].append(label)
+            if checked.get("error"):
+                result["gate_error"] = checked["error"]
+        if schema["price_constraint"]:
+            expected = parse_price_constraint(schema["price_constraint"])
+            actual = parse_price_constraint(query)
+            status = "SUPPORTED" if actual == expected and actual is not None else "MISSING" if actual is None else "CONTRADICTED"
+            result["constraint_coverage"].append({"constraint": "price", "group": "price", "status": status,
+                                                   "match_type": "price_bounds", "reason": "Compare exact price bounds"})
+            if status != "SUPPORTED":
+                result["missing_constraints" if status == "MISSING" else "contradicted_constraints"].append("price")
+        if not query:
+            result["missing_constraints"].append("nonempty query")
+        if not result["missing_constraints"] and not result["contradicted_constraints"]:
+            return dict(result, decision="PASS", reason="All query constraints preserved")
+        parts = [schema["product_type"]["canonical"]]
+        parts += [item["canonical"] for item in schema["required_constraints"]]
+        parts += [item.get("value", item["canonical"]) for item in schema["post_selection_constraints"]]
+        if schema["price_constraint"]:
+            parts.append(schema["price_constraint"])
+        return dict(result, decision="REVISE", reason="Restore missing or contradicted constraints",
+                    revised_query=" ".join(dict.fromkeys(x for x in parts if x)))
+
+    def evaluate(self, instruction, proposed_query, history=None):
+        result = self.validate_query(instruction, proposed_query)
+        previous = [self._clean_query(x.get("action", "")) for x in (history or [])
+                    if str(x.get("action", "")).lower().startswith("search[")]
+        result["repeated_query"] = self.constraint_manager.normalize_text(proposed_query) in {
+            self.constraint_manager.normalize_text(x) for x in previous}
         return result

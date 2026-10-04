@@ -1,0 +1,181 @@
+[
+  {
+    "task_id": "DEMO_TONGUE",
+    "instruction": "Find a BPA-free tongue cleaner in blue under $10.",
+    "instruction_attributes": [
+      "bpa free"
+    ],
+    "instruction_options": {
+      "color": "blue"
+    },
+    "schema": {
+      "product_type": {
+        "source_text": "tongue cleaner",
+        "canonical": "tongue cleaner",
+        "aliases": []
+      },
+      "required_constraints": [
+        {
+          "source_text": "BPA-free",
+          "canonical": "bpa free",
+          "aliases": [
+            "BPA-free"
+          ],
+          "kind": "attribute",
+          "value": "bpa free"
+        }
+      ],
+      "post_selection_constraints": [
+        {
+          "source_text": "blue",
+          "canonical": "color: blue",
+          "aliases": [
+            "blue"
+          ],
+          "kind": "color",
+          "value": "blue"
+        }
+      ],
+      "price_constraint": "under $10"
+    },
+    "products": [
+      {
+        "id": "B000000001",
+        "title": "Tongue cleaner",
+        "brand": "OralCo",
+        "price": "12.50",
+        "features": "Contains BPA",
+        "description": "Plastic tongue cleaner",
+        "options": {
+          "color": [
+            "blue",
+            "red"
+          ]
+        },
+        "base_reward": 0.4,
+        "expected": {
+          "product_type": "SUPPORTED",
+          "bpa free": "CONTRADICTED",
+          "price": "CONTRADICTED"
+        }
+      },
+      {
+        "id": "B000000002",
+        "title": "BPA-free tongue cleaner",
+        "brand": "OralCo",
+        "price": "9.00",
+        "features": "BPA-free material",
+        "description": "Easy to rinse tongue cleaner",
+        "options": {
+          "color": [
+            "blue",
+            "red"
+          ]
+        },
+        "base_reward": 1,
+        "expected": {
+          "product_type": "SUPPORTED",
+          "bpa free": "SUPPORTED",
+          "price": "SUPPORTED"
+        }
+      }
+    ]
+  },
+  {
+    "task_id": "DEMO_JUMPSUIT",
+    "instruction": "Find a green women's jumpsuit from Acme in size M at most $50.",
+    "instruction_attributes": [
+      "Acme"
+    ],
+    "instruction_options": {
+      "color": "green",
+      "size": "M"
+    },
+    "schema": {
+      "product_type": {
+        "source_text": "women's jumpsuit",
+        "canonical": "women's jumpsuit",
+        "aliases": []
+      },
+      "required_constraints": [
+        {
+          "source_text": "Acme",
+          "canonical": "Acme",
+          "aliases": [],
+          "kind": "brand",
+          "value": "Acme"
+        }
+      ],
+      "post_selection_constraints": [
+        {
+          "source_text": "green",
+          "canonical": "color: green",
+          "aliases": [
+            "green"
+          ],
+          "kind": "color",
+          "value": "green"
+        },
+        {
+          "source_text": "size M",
+          "canonical": "size: M",
+          "aliases": [
+            "M"
+          ],
+          "kind": "size",
+          "value": "M"
+        }
+      ],
+      "price_constraint": "at most $50"
+    },
+    "products": [
+      {
+        "id": "B000000003",
+        "title": "Women's jumpsuit",
+        "brand": "OtherBrand",
+        "price": "59",
+        "features": "Red jumpsuit",
+        "description": "Women's jumpsuit from OtherBrand",
+        "options": {
+          "color": [
+            "red"
+          ],
+          "size": [
+            "M",
+            "L"
+          ]
+        },
+        "base_reward": 0.3,
+        "expected": {
+          "product_type": "SUPPORTED",
+          "Acme": "CONTRADICTED",
+          "price": "CONTRADICTED"
+        }
+      },
+      {
+        "id": "B000000004",
+        "title": "Acme green women's jumpsuit",
+        "brand": "Acme",
+        "price": "49.99",
+        "features": "Green women's jumpsuit from Acme",
+        "description": "Available in green and size M",
+        "options": {
+          "color": [
+            "green",
+            "red"
+          ],
+          "size": [
+            "M",
+            "L"
+          ]
+        },
+        "base_reward": 1,
+        "expected": {
+          "product_type": "SUPPORTED",
+          "Acme": "SUPPORTED",
+          "price": "SUPPORTED"
+        }
+      }
+    ]
+  }
+]

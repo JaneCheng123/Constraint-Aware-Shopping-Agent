@@ -63,7 +63,7 @@ python -m demo.run_demo --output-dir results/demo-simple
 
 ## 实验记录与可选工具
 
-最新真实实验在每组 31 任务、20 步、单次重复下，满分成功数为 baseline 6、query 4、product 15、full 16。条件、成本和局限见 [真实实验记录](docs/LIVE_GATE_DIAGNOSTICS.md)；这是历史运行结果，不能当作本次入口整理后重新测得的成绩。
+最新真实实验在每组 31 任务、20 步、单次重复下，满分成功数为 baseline 4、query 6、product 17、full 17。无香选项修复在两个 Product Gate 组均得到实际选择和满分验证，品牌修复另有固定查询付费诊断。条件、成本和局限见 [修复后测试记录](docs/LIVE_GATE_FIX_VALIDATION.md)；上一轮 6、4、15、16 保留在 [历史记录](docs/LIVE_GATE_DIAGNOSTICS.md)。跨轮差值不能直接归因于修复，整体稳定性仍需重复实验。
 
 正式流程只需要四组运行与自动指标。审计重放、历史提示词、其他 Query 模式、共享 schema 和独立人工评估保留在 [可选研究说明](docs/GATE_EXPERIMENTS.md)，使用 `evaluation/run_live_advanced.ps1` 或对应诊断工具。未提供独立标签时，语义覆盖、误接受/误拒绝等指标保持 null；Gate 自己的判断不能充当标准答案。
 

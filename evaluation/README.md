@@ -25,7 +25,7 @@
 
 启动器自动执行预检，优先选择用户的 `miniconda3/envs/webshop`，配置该环境的 Java，并在退出时恢复环境变量。API key 来自 `DEEPSEEK_API_KEY`，不自动读取 `.env`。
 
-当前机器的 WebShop 环境已完成真实测试，见 [最新记录](../docs/LIVE_GATE_DIAGNOSTICS.md)。新环境需要上游依赖、Java/Pyserini/spaCy，以及以下数据：
+当前机器的 WebShop 环境已完成真实测试，见 [修复后最新记录](../docs/LIVE_GATE_FIX_VALIDATION.md)。新环境需要上游依赖、Java/Pyserini/spaCy，以及以下数据：
 
 - `data/items_shuffle_1000.json`、`data/items_ins_v2_1000.json`、`data/items_human_ins.json`。
 - `search_engine/indexes_1k`（1000 商品的 Lucene 索引）。

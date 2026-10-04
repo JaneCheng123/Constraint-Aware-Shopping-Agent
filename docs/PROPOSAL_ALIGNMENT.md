@@ -56,7 +56,7 @@ cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct �
 | 独立约束和误接受/误拒绝评测 | evaluation/export_annotations.py / metrics.py / summarize.py | 已实现工具，真实标签需要人工完成 |
 | 可复现项目包 | manifest、代码快照、CI、README、requirements | 已实现 |
 | End-to-end Demo | demo/run_demo.py / offline.py / render_report.py | 离线四组演示可运行 |
-| 真实实验结果及失败分析 | results/<live-run> | 本机缺数据、索引和环境依赖，尚未生成 |
+| 真实实验结果及失败分析 | results/cz-v1-live / docs/LIVE_VALIDATION.md | 已完成 31 任务四组单轮真实评测；独立人工标签仍需完成 |
 
 ## 实验边界
 

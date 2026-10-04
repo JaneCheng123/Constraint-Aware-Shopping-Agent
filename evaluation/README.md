@@ -2,6 +2,8 @@
 
 所有配置使用相同任务、模型、交互预算、策略和任务内记忆。任务完整交给 WebShopWrapper 构造评分 goal；ReAct 与 Gate 只接收 instruction 和可见交互证据。
 
+当前机器已通过真实环境测试，四组各 31 任务、20 步、1 次重复的结果见 [真实测试记录](../docs/LIVE_VALIDATION.md)。已有 Windows webshop Conda 环境时可用 .\evaluation\run_live.ps1 启动，必要时加 -DirectApi 绕过系统代理的 TLS 问题。
+
 ## 运行入口
 
 从仓库根目录使用模块方式运行：

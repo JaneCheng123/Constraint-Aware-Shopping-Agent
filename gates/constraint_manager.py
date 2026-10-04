@@ -293,6 +293,9 @@ class ConstraintManager:
             "price_constraint"
         )
 
+        if isinstance(price_constraint, dict):
+            price_constraint = price_constraint.get("source_text") or price_constraint.get("canonical") or price_constraint.get("value")
+
         if price_constraint is not None:
 
             price_constraint = str(
@@ -459,9 +462,11 @@ Proposed extraction:
 {json.dumps(normalized, ensure_ascii=False)}
 
 Check the extraction carefully. valid must describe the corrected_schema you return; return boolean false if that final schema cannot be verified. Check kind and value of every selectable option, including color and size, as well as price completeness.
-The normalized schema permits kind and value metadata on every item, including
+The normalized schema permits kind and value metadata on each constraint item, including
 product_type (kind=product_type). Do not reject or remove valid metadata merely
 because the illustrative output below omits it. Check meaning, not optional fields.
+price_constraint is a plain string copied from the original price phrase, or null.
+It does NOT need an object, kind, value or aliases. A string is the correct format.
 
 CRITICAL RULES:
 
@@ -666,6 +671,8 @@ User instruction:
 {instruction}
 
 Extract ONLY explicitly requested information. Include every explicit price, color, size, brand and category requirement. For each selectable option include kind (color/size/style/scent/pack) and value (exact selectable value). For fixed brand constraints use kind=brand and value=brand name. price_constraint is the original price phrase, preserving decimals and strict/inclusive bounds.
+Return price_constraint as a plain JSON string (e.g. "under $10"), or null when no
+price is requested. Do not put an object or kind/value metadata in this field.
 
 IMPORTANT:
 source_text MUST be copied from the original user instruction

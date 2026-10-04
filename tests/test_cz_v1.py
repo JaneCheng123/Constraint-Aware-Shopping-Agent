@@ -157,6 +157,14 @@ class ConstraintTests(unittest.TestCase):
         schema = ConstraintManager._normalize_schema(FIXTURES[0]["schema"])
         self.assertEqual(schema["product_type"]["kind"], "product_type")
 
+    def test_structured_price_response_is_normalized_to_anchored_phrase(self):
+        schema = copy.deepcopy(FIXTURES[0]["schema"])
+        schema["price_constraint"] = {"source_text": "under $10", "canonical": "at most $10", "kind": "price"}
+        normalized = ConstraintManager._normalize_schema(schema)
+        self.assertEqual(normalized["price_constraint"], "under $10")
+        self.assertFalse(ConstraintManager._deterministic_validation_issues(TASK["instruction"], normalized))
+        self.assertFalse(price_satisfies("10", parse_price_constraint(normalized["price_constraint"])))
+
     def test_query_includes_options_and_price(self):
         gate = QueryGate(constraint_manager=ConstraintManager(client=ScriptedClient()))
         result = gate.validate_query(TASK["instruction"], "tongue cleaner")

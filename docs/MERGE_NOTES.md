@@ -37,7 +37,7 @@ python -m demo.run_demo --output-dir results/demo-cz-v1-final
 python -m evaluation.preflight
 ~~~
 
-42 项核心回归测试通过，覆盖购买绕过、API 故障、候选导航、选项评分、价格、缓存、独立标签、信息泄露和四组公平性。17 项上游测试通过；旧测试的 spaCy 固定分数改为独立验证模型语义和受控 token 的分数公式，日志测试关闭 FileHandler 以支持 Windows。
+43 项核心回归测试通过，覆盖购买绕过、API 故障、候选导航、选项评分、价格、缓存、独立标签、信息泄露和四组公平性。17 项上游测试通过；旧测试的 spaCy 固定分数改为独立验证模型语义和受控 token 的分数公式，日志测试关闭 FileHandler 以支持 Windows。
 
 首次整合验证只检查了默认 Python 和本目录，因此只运行了离线验证。后续找到本机已有的 webshop Conda 环境，并从另一个项目副本复制真实数据和 1k 索引，已验证真实搜索、商品页和 DeepSeek 调用。
 

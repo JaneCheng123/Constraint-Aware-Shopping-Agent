@@ -2,7 +2,7 @@
 
 cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整合为一套可消融的购物 Agent。四组实验共享基础策略、任务内记忆、模型、动作校验与交互预算；仅切换 Query Gate 和 Product Gate。
 
-当前已完成核心实现、独立标注工具，以及真实 WebShop 四组各 31 任务、20 步预算的一轮评测。满分成功数分别为 Baseline 6、Query-only 5、Product-only 12、Full 9；另有 44 项核心与 17 项上游测试通过。详见 [真实测试记录](docs/LIVE_VALIDATION.md)。独立语义指标仍需人工标注；合成演示与真实成绩单独存放。新环境仍需准备上游依赖、商品数据和 Lucene 索引。
+当前已完成核心实现、独立标注工具，以及真实 WebShop 四组各 31 任务、20 步预算的一轮评测。满分成功数分别为 Baseline 6、Query-only 5、Product-only 12、Full 9，属于 b8d48c5 历史快照。后续审计职责、查询修复和受控实验工具见 [Gate 实验设计](docs/GATE_EXPERIMENTS.md)，尚未重跑真实成功率。独立语义指标仍需人工标注；合成演示与真实成绩单独存放。新环境仍需准备上游依赖、商品数据和 Lucene 索引。
 
 ## 执行流程
 
@@ -22,6 +22,7 @@ cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整�
 - [gates/query_gate.py](gates/query_gate.py)：搜索词中的类别、属性、品牌、选项和价格条件检查；返回 PASS、REVISE 或 UNAVAILABLE。
 - [gates/product_gate.py](gates/product_gate.py)：当前候选的完整证据检查、规则与语义判断、最终审计；返回 READY、INSPECT、REJECT、EXHAUSTED 或 UNAVAILABLE。
 - [gates/hard_constraints.py](gates/hard_constraints.py)：Decimal 价格边界（严格/包含上限、下限、区间）及选项值精确匹配；规则结果不由 LLM 改写。
+- [gates/audit_prompts.py](gates/audit_prompts.py)：审计职责、结构化错配验证及三个历史提示词版本；独立实验可选择四个审计臂。
 
 ## Agent 部分
 
@@ -37,7 +38,7 @@ cz-v1 将 main 的 ReAct 执行能力与 constraint-gates-v1 的约束模块整�
 核心回归与合成演示仅依赖 Python 标准库，从仓库根目录运行：
 
 ~~~bash
-python -m unittest discover -s tests -p test_cz_v1.py -v
+python -m unittest discover -s tests -p 'test_*.py' -v
 python -m demo.run_demo --output-dir results/demo-cz-v1
 ~~~
 

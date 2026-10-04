@@ -1,0 +1,17 @@
+{
+  "legacy": {
+    "source_revision": "762944e",
+    "source_sha256": "8899718ef5ceb517db3da1c967390159db1f86ed6ce0737bc120d9c553018bf6",
+    "template": "\nYou are the final semantic auditor for a Product Gate.\n\nAll lower-level constraint checks have already found support.\n\nYour only task is to make sure those matches are genuinely\nsemantically correct and preserve user intent.\n\nUser instruction:\n@@instruction@@\n\nValidated constraint schema:\n@@schema@@\n\nVisible product evidence:\n@@evidence@@\n\nUse ONLY the visible evidence.\nDo not use hidden ASINs, attributes, reward, or outside knowledge.\n\nPreserve semantic polarity.\n\nExamples:\n\nanimal testing != cruelty free\nwith alcohol != alcohol free\ncontains fragrance != fragrance free\ncruelty free may equal not tested on animals\n\nReturn ONLY JSON:\n\n{\n  \"decision\": \"ACCEPT or INSPECT or REJECT\",\n  \"problematic_constraints\": [],\n  \"reason\": \"short explanation\"\n}\n"
+  },
+  "benchmark": {
+    "source_revision": "b8d48c5",
+    "source_sha256": "d2717e66d0d1d393dab11260ab68fa30a1307c9db8ee824570a41485dd206eb5",
+    "template": "Audit a candidate after all deterministic and semantic checks.\nUser instruction: @@instruction@@\nValidated schema: @@schema@@\nVisible evidence: @@evidence@@\nUse only the visible evidence, preserving meaning and polarity. Category membership\nmust be established even for broad categories. Do not infer unseen properties.\nReturn JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason.\n"
+  },
+  "variant": {
+    "source_revision": "464cfe5",
+    "source_sha256": "ee9e8658496779847e51938579851ee647bbda5d3eca7a481d1c22d2249dfa8e",
+    "template": "Audit a candidate after all deterministic and semantic checks.\nUser instruction: @@instruction@@\nValidated schema: @@schema@@\nVisible evidence: @@evidence@@\nCurrent visible variant state and deterministic checks: @@variant_state@@\nUse only the visible evidence, preserving meaning and polarity. Category membership\nmust be established even for broad categories. Do not infer unseen properties.\nChecked radio options identify the currently selected variant. Generic product\ntitles and descriptions may describe a default variant; do not reject a confirmed\nmatching selection merely because that generic text names another size/color.\nAn explicit conflict about the selected variant must still be reported. Do not\ninfer selection from an option merely appearing in the list of available options.\nReturn JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason.\n"
+  }
+}

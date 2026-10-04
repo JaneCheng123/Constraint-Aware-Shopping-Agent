@@ -7,7 +7,12 @@ from gates.hard_constraints import parse_price_constraint
 
 
 class QueryGate:
-    def __init__(self, model=None, constraint_manager=None):
+    MODES = ("coverage", "layered", "direction")
+
+    def __init__(self, model=None, constraint_manager=None, mode="coverage"):
+        if mode not in self.MODES:
+            raise ValueError("Unknown query gate mode")
+        self.mode = mode
         self.constraint_manager = constraint_manager or ConstraintManager(model=model)
 
     @property
@@ -62,15 +67,36 @@ class QueryGate:
                 result["missing_constraints" if status == "MISSING" else "contradicted_constraints"].append("price")
         if not query:
             result["missing_constraints"].append("nonempty query")
-        if not result["missing_constraints"] and not result["contradicted_constraints"]:
-            return dict(result, decision="PASS", reason="All query constraints preserved")
+        if result["gate_error"]:
+            return dict(result, decision="UNAVAILABLE", mode=self.mode, warnings=[],
+                        reason="Query matching unavailable; omissions cannot be trusted")
+        result["mode"] = self.mode
+        result["warnings"] = []
+        if self.mode == "layered":
+            result["warnings"] = [x["constraint"] for x in result["constraint_coverage"]
+                if x["status"] == "MISSING" and (x["group"] in {"product_type", "post_selection", "price"}
+                or any(c["canonical"] == x["constraint"] and c.get("kind") in {"brand", "model", "size", "color"}
+                       for c in schema["required_constraints"]))]
+        blocking_missing = result["missing_constraints"] if self.mode == "coverage" else []
+        if not query:
+            blocking_missing = ["nonempty query"]
+        if not blocking_missing and not result["contradicted_constraints"]:
+            return dict(result, decision="PASS", reason="No blocking query issues; omissions remain diagnostic")
         parts = [schema["product_type"]["canonical"]]
         parts += [item["canonical"] for item in schema["required_constraints"]]
         parts += [item.get("value", item["canonical"]) for item in schema["post_selection_constraints"]]
         if schema["price_constraint"]:
             parts.append(schema["price_constraint"])
-        return dict(result, decision="REVISE", reason="Restore missing or contradicted constraints",
-                    revised_query=" ".join(dict.fromkeys(x for x in parts if x)))
+        if result["contradicted_constraints"]:
+            repaired = " ".join(dict.fromkeys(x for x in parts if x))
+        else:
+            # Preserve the policy's useful query; append only omitted constraints.
+            additions = [x for x in result["missing_constraints"] if x not in {"price", "nonempty query"}]
+            if "price" in result["missing_constraints"]:
+                additions.append(schema["price_constraint"])
+            repaired = " ".join([query] + list(dict.fromkeys(additions))).strip()
+        return dict(result, decision="REVISE", reason="Repair missing requirements or explicit conflicts",
+                    revised_query=repaired)
 
     def evaluate(self, instruction, proposed_query, history=None):
         result = self.validate_query(instruction, proposed_query)

@@ -13,10 +13,12 @@ cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct �
    - 对应 Phase 2 的 Query Gate。
    - 检查类别、属性、品牌、颜色/尺寸等选项及价格条件。
    - PASS/REVISE/UNAVAILABLE；修复后的搜索必须再次验证。
+   - 默认 coverage 保留完整覆盖目标；layered/direction 为独立 H2 实验设置。缺失时保留原查询补充，矛盾时重建。
 3. gates/product_gate.py
    - 对应 Phase 3 的 Product Gate。
    - 汇总可见页面证据，检查类别、属性、硬约束、当前选项和价格。
    - READY/INSPECT/REJECT/EXHAUSTED/UNAVAILABLE；最终语义审计不能覆盖硬约束冲突。
+   - grounded 审计复核已有约束并引用错配证据；选项来源复核 H1 默认关闭，不直接强制放行。
 4. gates/hard_constraints.py
    - 对应 rule-based hard constraint checks。
    - 精确 Decimal 金额、包含/严格上下界与区间；只读取商品 Price 字段。
@@ -59,6 +61,8 @@ cz-v1 以 constraint-gates-v1 的约束架构为主体，吸收 main 的 ReAct �
 | 真实实验结果及失败分析 | results/cz-v1-live / docs/LIVE_VALIDATION.md | 已完成 31 任务四组单轮真实评测；独立人工标签仍需完成 |
 
 ## 实验边界
+
+审计重放、按证据状态的人工审查、matcher 诊断与共享 schema 控制见 [GATE_EXPERIMENTS.md](GATE_EXPERIMENTS.md)。它们与完整系统四组评测分别报告，历史成绩不因后续代码变化而改写。
 
 Baseline 不使用 main 原先基于标注属性的购买资格判断。结构化约束抽取与购买资格只在对应 Gate 开启时生效；所有配置都有相同的通用动作校验和任务内记忆。
 

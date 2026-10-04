@@ -7,6 +7,11 @@ param(
     [string]$Model = 'deepseek-chat',
     [string]$Dataset = 'evaluation/webshop_test_100.json',
     [string]$OutputDir = 'results/cz-v1-live',
+    [ValidateSet('coverage', 'layered', 'direction')][string]$QueryMode = 'coverage',
+    [ValidateSet('legacy', 'benchmark', 'variant', 'grounded')][string]$AuditVersion = 'grounded',
+    [string]$FrozenSchemas,
+    [switch]$VariantReview,
+    [switch]$DeduplicateCandidates,
     [switch]$Resume,
     [switch]$DirectApi
 )
@@ -39,8 +44,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'WebShop prerequisite check failed.' }
     $runArguments = @('-m', 'evaluation.run_experiment', '--configs') + $Configs + @(
         '--dataset', $Dataset, '--model', $Model, '--max-steps', "$MaxSteps",
-        '--num-products', '1000', '--repeats', "$Repeats", '--seed', "$Seed", '--output-dir', $OutputDir
+        '--num-products', '1000', '--repeats', "$Repeats", '--seed', "$Seed", '--output-dir', $OutputDir,
+        '--query-mode', $QueryMode, '--audit-version', $AuditVersion
     )
+    if ($FrozenSchemas) { $runArguments += @('--frozen-schemas', $FrozenSchemas) }
+    if ($VariantReview) { $runArguments += '--variant-review' }
+    if ($DeduplicateCandidates) { $runArguments += '--deduplicate-candidates' }
     if ($Resume) { $runArguments += '--resume' }
     & $PythonPath @runArguments
     if ($LASTEXITCODE -ne 0) { throw 'WebShop experiment failed; inspect the saved records.' }

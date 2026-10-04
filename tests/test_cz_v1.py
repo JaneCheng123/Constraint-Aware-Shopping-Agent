@@ -237,7 +237,7 @@ class ProductGateTests(unittest.TestCase):
 
     def test_final_audit_receives_visible_selection_and_does_not_reuse_other_variant(self):
         client = QueueClient(json.dumps({"decision": "ACCEPT"}), json.dumps({"decision": "REJECT"}))
-        gate = ProductGate(constraint_manager=ConstraintManager(client=client))
+        gate = ProductGate(constraint_manager=ConstraintManager(client=client), audit_version="variant")
         schema = copy.deepcopy(FIXTURES[0]["schema"])
         blue = {"selected_options": {"color": "blue"}, "option_groups": {"color": ["blue", "red"]}}
         red = {"selected_options": {"color": "red"}, "option_groups": {"color": ["blue", "red"]}}
@@ -440,6 +440,8 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(resumed["full"]["llm_calls"], result["full"]["llm_calls"])
             with self.assertRaises(ValueError):
                 run_experiment(argv + ["--resume", "--max-steps", "30"], ScriptedClient, DemoEnvironment, "synthetic_offline_demo")
+            with self.assertRaises(ValueError):
+                run_experiment(argv + ["--resume", "--query-mode", "layered"], ScriptedClient, DemoEnvironment, "synthetic_offline_demo")
             self.assertTrue((Path(folder) / "report.html").exists())
 
     def test_wrapper_does_not_inherit_hidden_attributes(self):

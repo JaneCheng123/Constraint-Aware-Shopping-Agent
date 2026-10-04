@@ -96,3 +96,6 @@ manifest.json 保存任务 ID、数据/标签 hash、模型、随机种子、重
 4. 选项、导航、步骤耗尽、模型输出格式与 API 错误。
 
 当前本地验证仅为离线回归与合成演示。真实 WebShop reward 与人工审查结论必须在数据/索引准备后取得。
+## Gate 受控实验
+
+审计重放、matcher 诊断、共享 schema、H1/H2 独立开关和成本边界见 [GATE_EXPERIMENTS.md](../docs/GATE_EXPERIMENTS.md)。诊断命令默认只生成计划，显式 --execute 才调用 API；run_experiment/run_live 正常执行真实任务。历史成绩不随新代码改写。

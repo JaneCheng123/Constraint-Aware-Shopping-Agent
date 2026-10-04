@@ -1,6 +1,7 @@
 """One ReAct policy, memory and interaction budget for the four ablations."""
 
 import json
+import copy
 import re
 import time
 
@@ -34,7 +35,9 @@ def canonical_action(action, available):
 
 class ReActAgent(BaseAgent):
     def __init__(self, num_products=1000, max_steps=20, model=None, client=None,
-                 use_query_gate=False, use_product_gate=False, env_factory=None, verbose=False):
+                 use_query_gate=False, use_product_gate=False, env_factory=None, verbose=False,
+                 query_mode="coverage", audit_version="grounded", variant_review=False,
+                 deduplicate_candidates=False, frozen_schemas=None):
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
         self.client = client or LLMClient(model=model)
@@ -42,6 +45,9 @@ class ReActAgent(BaseAgent):
         self.num_products, self.max_steps = num_products, max_steps
         self.use_query_gate, self.use_product_gate = use_query_gate, use_product_gate
         self.env_factory, self.verbose = env_factory, verbose
+        self.query_mode, self.audit_version = query_mode, audit_version
+        self.variant_review, self.deduplicate_candidates = variant_review, deduplicate_candidates
+        self.frozen_schemas = frozen_schemas
         self.name = ("full" if use_query_gate and use_product_gate else "query" if use_query_gate
                      else "product" if use_product_gate else "baseline")
 
@@ -94,8 +100,14 @@ ratings, or comparison with alternatives unless the user's instruction asks.
         memory, trajectory, events = EpisodeMemory(), [], []
         self.constraint_manager = (ConstraintManager(model=self.model, client=self.client)
                                    if self.use_query_gate or self.use_product_gate else None)
-        self.query_gate = QueryGate(constraint_manager=self.constraint_manager) if self.use_query_gate else None
-        self.product_gate = ProductGate(constraint_manager=self.constraint_manager) if self.use_product_gate else None
+        if self.constraint_manager and self.frozen_schemas is not None:
+            row = self.frozen_schemas[str(task["task_id"])]
+            if row["instruction"] != instruction:
+                raise ValueError("Frozen instruction mismatch")
+            self.constraint_manager._schema_cache[instruction.strip()] = copy.deepcopy(row["schema"])
+        self.query_gate = QueryGate(constraint_manager=self.constraint_manager, mode=self.query_mode) if self.use_query_gate else None
+        self.product_gate = ProductGate(constraint_manager=self.constraint_manager, audit_version=self.audit_version,
+                                       variant_review=self.variant_review) if self.use_product_gate else None
         self.memory = memory
         schema, env, reward, done, error = None, None, 0.0, False, None
         stop_reason = "step_budget"
@@ -110,9 +122,16 @@ ratings, or comparison with alternatives unless the user's instruction asks.
                 inspection_state=memory.inspection_state(),
             )
             memory.candidate["status"] = feedback["decision"].lower()
+            if feedback["decision"] == "EXHAUSTED" and not feedback.get("gate_error"):
+                item = memory.candidate
+                item["exhausted_state"] = json.dumps({"pages": item["pages"],
+                    "options": item["selected_options"], "groups": item["option_groups"]}, sort_keys=True)
+            else:
+                memory.candidate.pop("exhausted_state", None)
             events.append({"gate": "product", "step": step, "phase": phase,
                            "product_id": memory.current,
                            "selected_options": dict(memory.candidate["selected_options"]),
+                           "variant_state": copy.deepcopy(feedback.get("variant_state", {})),
                            "visible_evidence": memory.evidence(), "result": feedback})
             return feedback
 
@@ -134,6 +153,8 @@ ratings, or comparison with alternatives unless the user's instruction asks.
                                         stop_reason, error, started, usage_before)
             for step in range(1, self.max_steps + 1):
                 actions = env.get_available_actions()
+                if self.deduplicate_candidates and self.product_gate:
+                    actions = memory.filter_revisits(actions)
                 feedback = product_check(actions, step, "before_policy")
                 raw = self._policy(instruction, memory, observation, actions, feedback=feedback, step=step)
                 assessment, proposal = parse_react(raw)
@@ -170,6 +191,20 @@ ratings, or comparison with alternatives unless the user's instruction asks.
                     query_feedback = self.query_gate.evaluate(instruction, action[7:-1], memory.history)
                     events.append({"gate": "query", "step": step, "phase": "proposal", "query": action[7:-1],
                                    "result": query_feedback})
+                    if query_feedback["decision"] == "PASS" and query_feedback.get("warnings"):
+                        # Nonblocking reminder is its own intervention and call.
+                        try:
+                            warned = self._policy(instruction, memory, observation, actions,
+                                feedback=query_feedback, retry=action, step=step, purpose="query_reminder")
+                            candidate = canonical_action(parse_react(warned)[1], actions)
+                            if candidate and candidate.startswith("search["):
+                                checked = self.query_gate.validate_query(instruction, candidate[7:-1])
+                                events.append({"gate": "query", "step": step, "phase": "reminder",
+                                               "query": candidate[7:-1], "result": checked})
+                                if checked["decision"] == "PASS":
+                                    action = candidate
+                        except Exception as exc:
+                            retry_error = str(exc)
                     if query_feedback["decision"] != "PASS":
                         try:
                             recovery = self._policy(instruction, memory, observation, actions,
@@ -259,6 +294,11 @@ ratings, or comparison with alternatives unless the user's instruction asks.
         purchased = memory.current if done and memory.candidate and memory.candidate["status"] == "purchased" else None
         usage = usage_delta(before, self.client.snapshot())
         result.update(configuration=self.name, model=self.model, max_steps=self.max_steps,
+                      interventions={"query_mode": self.query_mode, "audit_version": self.audit_version,
+                                     "variant_review": self.variant_review,
+                                     "deduplicate_candidates": self.deduplicate_candidates,
+                                     "schema_source": ("none" if not self.constraint_manager else
+                                                       "frozen" if self.frozen_schemas is not None else "per_episode")},
                       steps=sum(x.get("executed", True) for x in trajectory), done=bool(done),
                       stop_reason=reason, constraint_schema=schema, gate_events=events,
                       purchased_product=purchased,

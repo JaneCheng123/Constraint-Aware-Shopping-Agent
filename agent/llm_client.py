@@ -16,9 +16,11 @@ class LLMClient:
         self.output_tokens = 0
         self._sdk = None
         self._http = None
+        self.last_response_metadata = None
 
     def complete(self, prompt, purpose="policy", model=None):
         self.calls[purpose] += 1
+        self.last_response_metadata = None
         try:
             if self._sdk is None and self._http is None:
                 if not self.api_key:
@@ -46,11 +48,13 @@ class LLMClient:
                     json=arguments, timeout=self.timeout)
                 response.raise_for_status()
                 response = response.json()
+                self.last_response_metadata = {key: response.get(key) for key in ("id", "model", "system_fingerprint")}
                 usage = response.get("usage") or {}
                 self.input_tokens += usage.get("prompt_tokens") or 0
                 self.output_tokens += usage.get("completion_tokens") or 0
                 return response["choices"][0]["message"].get("content") or ""
             response = self._sdk.chat.completions.create(**arguments)
+            self.last_response_metadata = {key: getattr(response, key, None) for key in ("id", "model", "system_fingerprint")}
             if response.usage:
                 self.input_tokens += response.usage.prompt_tokens or 0
                 self.output_tokens += response.usage.completion_tokens or 0

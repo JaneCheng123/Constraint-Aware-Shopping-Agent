@@ -16,6 +16,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Gate and agent regression suite
-        run: python -m unittest discover -s tests -p test_cz_v1.py -v
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Four-configuration synthetic demo
         run: python -m demo.run_demo --output-dir results/ci-demo

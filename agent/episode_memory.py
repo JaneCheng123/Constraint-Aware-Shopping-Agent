@@ -1,6 +1,7 @@
 """Task-local visible state shared by all four configurations."""
 
 import re
+import json
 
 from gates.hard_constraints import normalize_option
 
@@ -49,6 +50,33 @@ class EpisodeMemory:
 
     def evidence(self):
         return "\n\n".join(f"[{source}]\n{text}" for source, text in (self.candidate or {}).get("pages", {}).items())
+
+    def filter_revisits(self, actions):
+        """Optional conservative dedup: only exhausted, fully inspected states.
+
+        Never exclude a product with alternative selectors, a transient error, or
+        a semantic REJECT. A change in the known state permits a revisit.
+        """
+        import copy
+        blocked = set()
+        for pid in actions.get("product_ids", []):
+            item = self.candidates.get(str(pid).upper())
+            if not item or item["status"] != "exhausted":
+                continue
+            if set(item["available_sections"]) - set(item["seen_sections"]):
+                continue
+            if any(len(values) > 1 for values in item["option_groups"].values()):
+                continue
+            # An exhausted state can be reopened if its known state changes.
+            state = json.dumps({"pages": item["pages"], "options": item["selected_options"],
+                                "groups": item["option_groups"]}, sort_keys=True)
+            if item.get("exhausted_state") == state:
+                blocked.add(str(pid).casefold())
+        filtered = copy.deepcopy(actions)
+        filtered["product_ids"] = [p for p in actions.get("product_ids", []) if str(p).casefold() not in blocked]
+        filtered["clickables"] = [p for p in actions.get("clickables", []) if str(p).casefold() not in blocked]
+        filtered["blocked_revisits"] = sorted(blocked)
+        return filtered
 
     def update(self, action, assessment, observation, before, after, cleaner):
         candidate_before = self.candidate

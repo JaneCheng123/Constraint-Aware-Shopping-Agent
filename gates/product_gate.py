@@ -5,16 +5,23 @@ import re
 
 from gates.constraint_manager import ConstraintManager
 from gates.hard_constraints import check_option, check_price, normalize_option
+from gates.audit_prompts import AUDIT_VERSIONS, build_audit_prompt, validate_grounded_audit, prompt_hash
 
 
 class ProductGate:
-    def __init__(self, model=None, constraint_manager=None):
+    def __init__(self, model=None, constraint_manager=None, audit_version="grounded", variant_review=False):
+        if audit_version not in AUDIT_VERSIONS:
+            raise ValueError("Unknown audit version")
+        if variant_review and audit_version != "grounded":
+            raise ValueError("H1 requires the grounded audit's structured constraint issues")
+        self.audit_version, self.variant_review = audit_version, variant_review
         self.constraint_manager = constraint_manager or ConstraintManager(model=model)
         self.client = self.constraint_manager.client
         self.model = model or self.constraint_manager.model
         self.rule_checks = self.semantic_fallback_calls = self.semantic_calls = 0
         self.semantic_errors = self.final_audit_calls = self.final_audit_errors = 0
         self._audit_cache = {}
+        self._variant_review_cache = {}
 
     @staticmethod
     def _strip_instruction(instruction, observation):
@@ -75,42 +82,82 @@ class ProductGate:
     def _resolve_constraint(self, evidence, constraint, context="visible evidence"):
         return self._resolve(evidence, constraint)
 
-    def _final_audit(self, instruction, schema, evidence, variant_state=None):
+    def _final_audit(self, instruction, schema, evidence, variant_state=None, use_cache=True):
         variant_state = variant_state or {}
-        key = (instruction, json.dumps(schema, sort_keys=True), evidence,
+        key = (self.audit_version, instruction, json.dumps(schema, sort_keys=True), evidence,
                json.dumps(variant_state, sort_keys=True))
-        if key in self._audit_cache:
+        if use_cache and key in self._audit_cache:
             return dict(self._audit_cache[key])
-        prompt = f"""Audit a candidate after all deterministic and semantic checks.
-User instruction: {instruction}
-Validated schema: {json.dumps(schema, ensure_ascii=False)}
-Visible evidence: {evidence}
-Current visible variant state and deterministic checks: {json.dumps(variant_state, ensure_ascii=False)}
-Use only the visible evidence, preserving meaning and polarity. Category membership
-must be established even for broad categories. Do not infer unseen properties.
-Checked radio options identify the currently selected variant. Generic product
-titles and descriptions may describe a default variant; do not reject a confirmed
-matching selection merely because that generic text names another size/color.
-An explicit conflict about the selected variant must still be reported. Do not
-infer selection from an option merely appearing in the list of available options.
-Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason.
-"""
+        prompt = build_audit_prompt(self.audit_version, instruction, schema, evidence, variant_state)
+        raw = None
         try:
             self.final_audit_calls += 1
             self.semantic_calls += 1
-            parsed = ConstraintManager._extract_json(
-                self.client.complete(prompt, purpose="product_final_audit", model=self.model))
+            raw = self.client.complete(prompt, purpose="product_final_audit", model=self.model)
+            parsed = ConstraintManager._extract_json(raw)
             if not isinstance(parsed, dict) or parsed.get("decision") not in {"ACCEPT", "INSPECT", "REJECT"}:
                 raise ValueError("Invalid final audit response")
-            result = dict(parsed, error=None)
+            if self.audit_version == "grounded":
+                validate_grounded_audit(parsed, schema, evidence)
+            result = dict(parsed, error=None, raw_output=raw, prompt_sha256=prompt_hash(prompt))
         except Exception as exc:
             self.final_audit_errors += 1
             result = {"decision": "INSPECT", "problematic_constraints": [],
-                      "reason": "Final audit unavailable; purchase remains blocked", "error": str(exc)}
-        self._audit_cache[key] = dict(result)
+                      "reason": "Final audit unavailable; purchase remains blocked", "error": str(exc),
+                      "raw_output": raw, "prompt_sha256": prompt_hash(prompt)}
+        result["audit_version"] = self.audit_version
+        # A transient transport/format failure must not become a permanent verdict.
+        if use_cache and not result.get("error"):
+            self._audit_cache[key] = dict(result)
         return result
 
-    def _recommend_action(self, decision, options, actions, inspection):
+    def _review_variant_conflict(self, instruction, schema, audit, evidence, state):
+        """H1: one targeted review, retaining an explicit UNKNOWN outcome."""
+        selected = [x for x in state["checks"] if x.get("selected") and x.get("status") == "SUPPORTED"]
+        issues = audit.get("problematic_constraints", [])
+        names = {x["constraint"] for x in selected}
+        if (audit.get("decision") != "REJECT" or not selected or not issues or
+                any(not isinstance(x, dict) or x.get("constraint") not in names for x in issues)):
+            return audit
+        prompt = f"""Resolve only the reported selected-variant conflict.
+Visible evidence: {evidence}
+Visible selected state: {json.dumps(state, ensure_ascii=False)}
+Reported issues: {json.dumps(issues, ensure_ascii=False)}
+Return JSON: status (EXPLICIT_CONFLICT, GENERIC_DEFAULT, UNKNOWN), evidence
+(verbatim visible quote), reason. EXPLICIT_CONFLICT requires a quote explicitly
+about the selected variant. GENERIC_DEFAULT requires evidence that the conflicting
+text describes a default variant. Absence of a conflict is not proof of that.
+Use UNKNOWN when provenance cannot be established. Do not invent evidence.
+"""
+        cache_key = prompt_hash(prompt)
+        try:
+            if cache_key in self._variant_review_cache:
+                review = self._variant_review_cache[cache_key]
+            else:
+                review = ConstraintManager._extract_json(self.client.complete(
+                    prompt, purpose="variant_conflict_review", model=self.model))
+            status = review.get("status")
+            quote = review.get("evidence", "")
+            if status not in {"EXPLICIT_CONFLICT", "GENERIC_DEFAULT", "UNKNOWN"}:
+                raise ValueError("Invalid variant review status")
+            if status != "UNKNOWN" and (not isinstance(quote, str) or not quote.strip() or quote not in evidence):
+                raise ValueError("Variant review needs a visible provenance quote")
+            self._variant_review_cache[cache_key] = review
+        except Exception as exc:
+            review = {"status": "UNKNOWN", "reason": str(exc), "error": str(exc)}
+        result = dict(audit, variant_review=review)
+        if review["status"] == "EXPLICIT_CONFLICT":
+            return result
+        if review["status"] == "GENERIC_DEFAULT":
+            repeated = self._final_audit(instruction, schema, evidence,
+                                        dict(state, provenance_review=review))
+            return dict(repeated, variant_review=review)
+        # Even GENERIC_DEFAULT does not grant acceptance; a fresh full audit must
+        # assess the other constraints. H1 never overrides a rejection to READY.
+        result.update(decision="INSPECT", reason="Selected-variant provenance needs resolution")
+        return result
+
+    def _recommend_action(self, decision, options, actions, inspection, suggested_pages=None):
         clickables = {str(x).lower(): str(x) for x in self._clickables(actions)}
         on_product = "buy now" in clickables
         if decision in {"REJECT", "EXHAUSTED", "UNAVAILABLE"}:
@@ -124,7 +171,7 @@ Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason
         if decision == "READY" and on_product:
             return f"click[{clickables['buy now']}]"
         seen = set((inspection or {}).get("seen_sections", []))
-        for section in ("features", "description", "reviews"):
+        for section in list(dict.fromkeys((suggested_pages or []) + ["features", "description", "reviews"])):
             if section in clickables and section not in seen:
                 return f"click[{clickables[section]}]"
         return None
@@ -184,8 +231,13 @@ Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason
             decision = "EXHAUSTED" if exhausted else "INSPECT"
             reason = "Unresolved requirements: " + ", ".join(missing)
         else:
-            audit = self._final_audit(instruction, schema, evidence,
-                {"option_groups": groups, "selected_options": selected, "checks": options})
+            variant_state = {"option_groups": groups, "selected_options": selected, "checks": options,
+                             "constraint_checks": entries,
+                             "available_sections": inspection.get("available_sections", []),
+                             "seen_sections": inspection.get("seen_sections", [])}
+            audit = self._final_audit(instruction, schema, evidence, variant_state)
+            if self.variant_review and not audit.get("error"):
+                audit = self._review_variant_conflict(instruction, schema, audit, evidence, variant_state)
             decision = {"ACCEPT": "READY", "REJECT": "REJECT", "INSPECT": "INSPECT"}[audit["decision"]]
             reason = audit.get("reason", "")
             if audit.get("error"):
@@ -196,11 +248,17 @@ Return JSON: decision (ACCEPT, INSPECT, REJECT), problematic_constraints, reason
             ):
                 decision = "EXHAUSTED"
             if decision == "REJECT":
-                contradicted += audit.get("problematic_constraints", [])
+                contradicted += [x.get("constraint") if isinstance(x, dict) else x
+                                 for x in audit.get("problematic_constraints", [])]
         return dict(base, decision=decision, ready_to_buy=decision == "READY",
                     should_keep_candidate=decision in {"READY", "INSPECT"}, rule_passed=not missing and not contradicted,
                     matched_constraints=matched, missing_constraints=missing, contradicted_constraints=contradicted,
                     constraint_evidence=entries, product_type_evidence=category, post_selection=options,
                     price_evidence=price, llm_audit_used=audit is not None, llm_audit=audit,
                     gate_error=errors or None, reason=reason,
-                    recommended_action=self._recommend_action(decision, options, actions, inspection))
+                    variant_state={"option_groups": groups, "selected_options": selected, "checks": options,
+                                   "constraint_checks": entries,
+                                   "available_sections": inspection.get("available_sections", []),
+                                   "seen_sections": inspection.get("seen_sections", [])},
+                    recommended_action=self._recommend_action(decision, options, actions, inspection,
+                                                              (audit or {}).get("suggested_pages", [])))

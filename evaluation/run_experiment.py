@@ -14,6 +14,9 @@ from agent.gated_agent import GatedAgent
 from agent.llm_client import LLMClient
 from evaluation.metrics import AnnotationStore, compute_summary
 from evaluation.task_loader import load_tasks
+from evaluation.frozen_schemas import load_frozen
+from gates.audit_prompts import AUDIT_VERSIONS
+from gates.query_gate import QueryGate
 
 
 CONFIGURATIONS = {"baseline": (False, False), "query": (True, False),
@@ -34,6 +37,7 @@ def source_files():
     for folder in ("agent", "gates", "evaluation", "webshop_wrapper", "demo"):
         paths += list((ROOT / folder).glob("*.py"))
     paths += list((ROOT / "demo").glob("*.json"))
+    paths += list((ROOT / "gates").glob("*.json"))
     paths += list((ROOT / "evaluation").glob("*.ps1"))
     paths += list((ROOT / "web_agent_site").rglob("*.py"))
     paths += list((ROOT / "web_agent_site/templates").glob("*.html"))
@@ -59,6 +63,9 @@ def manifest_for(args, tasks):
                 "model": args.model, "max_steps": args.max_steps, "num_products": args.num_products,
                 "repeats": args.repeats, "seed": args.seed, "run_kind": args.run_kind,
                 "annotations_sha256": file_hash(args.annotations) if args.annotations else None,
+                "query_mode": args.query_mode, "audit_version": args.audit_version,
+                "variant_review": args.variant_review, "deduplicate_candidates": args.deduplicate_candidates,
+                "frozen_schemas_sha256": file_hash(args.frozen_schemas) if args.frozen_schemas else None,
                 "source_sha256": sources, "product_data_sha256": product_data,
                 "index_fingerprint": index_fingerprint, "python_version": sys.version.split()[0],
                 "package_versions": versions}
@@ -84,6 +91,11 @@ def build_parser():
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--query-mode", choices=QueryGate.MODES, default="coverage")
+    parser.add_argument("--audit-version", choices=AUDIT_VERSIONS, default="grounded")
+    parser.add_argument("--variant-review", action="store_true", help="Optional H1 selected-variant provenance review")
+    parser.add_argument("--deduplicate-candidates", action="store_true", help="Optional exhausted-state revisit filter")
+    parser.add_argument("--frozen-schemas", help="Shared validated extraction outcomes; baseline remains independent")
     return parser
 
 
@@ -93,6 +105,8 @@ def main(argv=None, client_factory=None, env_factory=None, run_kind="live_websho
     args.run_kind = run_kind
     if args.max_steps < 1 or args.repeats < 1:
         raise ValueError("max-steps and repeats must be positive")
+    if args.variant_review and args.audit_version != "grounded":
+        raise ValueError("--variant-review requires --audit-version grounded")
     if len(set(args.configs)) != len(args.configs):
         raise ValueError("Configurations must be unique")
     if client_factory is None and env_factory is None:
@@ -104,6 +118,7 @@ def main(argv=None, client_factory=None, env_factory=None, run_kind="live_websho
     tasks = load_tasks(args.dataset)
     if not tasks:
         raise ValueError("Dataset contains no instruction-bearing tasks")
+    frozen = load_frozen(args.frozen_schemas, tasks) if args.frozen_schemas else None
     annotations = AnnotationStore.load(args.annotations)
     output = Path(args.output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -119,6 +134,8 @@ def main(argv=None, client_factory=None, env_factory=None, run_kind="live_websho
         if any(output.glob("*/results.jsonl")):
             raise ValueError("Existing results have no manifest; choose a new output directory")
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        if frozen:
+            (output / "frozen_schemas.json").write_text(json.dumps(frozen, ensure_ascii=False, indent=2), encoding="utf-8")
         for src in source_files():
             dest = output / "code_snapshot" / src.relative_to(ROOT)
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -143,7 +160,10 @@ def main(argv=None, client_factory=None, env_factory=None, run_kind="live_websho
                 client = client_factory() if client_factory else LLMClient(model=args.model)
                 agent = GatedAgent(num_products=args.num_products, max_steps=args.max_steps,
                                    model=args.model, client=client, env_factory=env_factory,
-                                   use_query_gate=query, use_product_gate=product, verbose=args.verbose)
+                                   use_query_gate=query, use_product_gate=product, verbose=args.verbose,
+                                   query_mode=args.query_mode, audit_version=args.audit_version,
+                                   variant_review=args.variant_review, deduplicate_candidates=args.deduplicate_candidates,
+                                   frozen_schemas=frozen["tasks"] if frozen else None)
                 record = agent.run(task)
                 record.update(repeat=repeat, seed=args.seed + repeat, run_kind=run_kind)
                 # Scoring metadata is stored only after the run, never passed to the policy.

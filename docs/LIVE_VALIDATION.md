@@ -42,6 +42,8 @@
 
 价格修复后的补充任务已能提取约束并点击 size=0.5 0unce，但最终语义审计没收到选中状态，只看通用标题/描述中的 1 oz，拒绝了该候选并耗尽步数。后续向审计传入页面可见的选项组、已选值和规则检查结果，说明通用默认规格不能代替当前选中变体，并把选项状态纳入审计缓存键。硬约束失败仍在审计前拦截；未选中的可用选项不会被视为已选。
 
+提交 464cfe5 的补测保留了两种结果：0.5 ounce 任务仍被审计判为与目录标题/描述的 1 oz 冲突，未购买；与目录 12 pcs 一致的 size=12 count (pack of 1)、under $10 任务则成功购买，reward=1，4 个环境动作、8 次 API 调用、0 次 API 错误。后者的动作依次为搜索、打开商品、点击所需选项、购买，购买前 READY 且选项/价格检查通过。所有补充任务单独保存，不加入前述 124 回合统计，也不通过覆盖 REJECT 来制造成功。
+
 ## 已观察到的失败案例
 
 1. B07DJJXGB5：原指令为 scrubs & body treatments with tea tree, natural ingredients。真实目标商品是 acne body spray；模型对类别和自然成分证据持疑，四组均耗尽 20 步。类别解释与 WebShop 原始分类并不总一致，不能只根据环境满分标签判断语义 Gate 对错。
@@ -59,6 +61,8 @@
 - results/cz-v1-live/manifest.json、code_snapshot、runs：执行参数、组件来源与源码快照。
 - results/cz-v1-live/validation.json：完整性和计数检查。
 - results/cz-v1-live/review-draft.json：249 条独立审查草稿，acceptable=null，未把 Gate verdict 充当答案。
+- results/cz-v1-live-option-agent*：明确价格/尺寸任务的失败、格式修复和选项审计修复的独立记录。
+- results/cz-v1-live-consistent-option-agent/report.html：最新补充代码中明确选项与价格的正向 Full Agent 回放。
 
 Query Coverage、Product Satisfaction、False Acceptance/False Rejection 等独立语义指标尚无人工标签，报告中返回 null。本轮真实 reward/success 和调用统计已完成，不能把这两种评估混为一谈。完成草稿审查后可用 evaluation.summarize 重新汇总，不再调用 API。
 
